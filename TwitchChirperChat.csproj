@@ -56,7 +56,6 @@
   <ItemGroup>
     <Compile Include="ChirperExtension.cs" />
     <Compile Include="ChirperMessage.cs" />
-    <Compile Include="CitizenInfo.cs" />
     <Compile Include="Configuration.cs" />
     <Compile Include="ConfigurationFile.cs" />
     <Compile Include="ModInfo.cs" />

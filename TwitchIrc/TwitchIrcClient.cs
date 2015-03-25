@@ -94,6 +94,10 @@ namespace TwitchChirperChat.TwitchIrc
             LoggedInUsers = new Dictionary<string, TwitchUser>();
         }
 
+        /// <summary>
+        /// Send a message through the channel
+        /// </summary>
+        /// <param name="message">The message to send</param>
         public void SendMessage(string message)
         {
             if (_outputWriter != null && IsConnected)
@@ -124,7 +128,7 @@ namespace TwitchChirperChat.TwitchIrc
         }
 
         /// <summary>
-        /// Run once the thread begins
+        /// Run once the thread begins, this is where the magic happens
         /// </summary>
         [SuppressMessage("ReSharper", "JoinDeclarationAndInitializer")] // inputReader and outputWriter can't have their declarations joined due to the tcpClient needing to connect first
         private void DoWork()

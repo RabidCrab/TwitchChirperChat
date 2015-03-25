@@ -5,6 +5,9 @@ using System.Text;
 
 namespace TwitchChirperChat.TwitchIrc
 {
+    /// <summary>
+    /// A generic Twitch User with no interal data parsing or logic beyond the object matching overrides
+    /// </summary>
     public class TwitchUser
     {
         public string UserName { get; set; }

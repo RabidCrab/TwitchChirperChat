@@ -5,6 +5,9 @@ using System.Text;
 
 namespace TwitchChirperChat
 {
+    /// <summary>
+    /// A chirp that will eventually show up on Chirper. Copied the serialization logic from https://github.com/mabako/reddit-for-city-skylines/
+    /// </summary>
     public class Message : MessageBase
     {
         private string m_author;
@@ -54,17 +57,14 @@ namespace TwitchChirperChat
         }
 
         /// <summary>
-        /// We want to ensure the same messages aren't shown twice.
+        /// We would want to ensure the same messages aren't shown twice, but if the user says the same thing twice,
+        /// who are we to judge?
         /// </summary>
         /// <param name="other">The other message to compare against</param>
         /// <returns>true if they're similar</returns>
         public override bool IsSimilarMessage(MessageBase other)
         {
             return false;
-
-            // We don't want to suppress similar messages since it's a chat stream
-            //var m = other as Message;
-            //return m != null && (m.m_author == m_author);
         }
 
         public override void Serialize(ColossalFramework.IO.DataSerializer s)

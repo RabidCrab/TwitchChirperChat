@@ -154,12 +154,9 @@ namespace TwitchChirperChat
                 if (_messageQueue.Count > 10)
                     _messageQueue.RemoveAll(x => x.Key == MessagePriority.Moderator);
             }
-            catch
+            catch (Exception ex)
             {
-                /*lock (_messageQueue)
-                {
-                    _messageQueue = new List<KeyValuePair<MessagePriority, QueuedChirperMessage>>();
-                }*/
+                Log.AddEntry(ex);
             }
         }
 
@@ -313,7 +310,7 @@ namespace TwitchChirperChat
         /// <summary>
         /// OnUpdate is called on the primary thread. When I need to work on non-interface stuff, such as diving down and manually removing
         /// a Chirp, I do it on the OnUpdate call to make sure I have ownership of the main thread. That guarantees I won't step on any toes
-        /// while modifying game objects
+        /// while modifying game objects. Mostly copied from https://github.com/mabako/reddit-for-city-skylines/
         /// </summary>
         /*public override void OnUpdate()
         {
@@ -350,7 +347,7 @@ namespace TwitchChirperChat
         }*/
 
         /// <summary>
-        /// On a new message event we check and see if the message is one we want to keep or delete
+        /// On a new message event we check and see if the message is one we want to keep or delete. Mostly copied from https://github.com/mabako/reddit-for-city-skylines/
         /// </summary>
         /*public override void OnNewMessage(IChirperMessage message)
         {
@@ -395,7 +392,8 @@ namespace TwitchChirperChat
         }
 
         /// <summary>
-        /// Get the Citizen or rename one and return it. This method really shouldn't be here, but I haven't had the opportunity to move it yet
+        /// Get the Citizen or rename one and return it. This method really shouldn't be here, but I haven't had the opportunity to move it yet. Mostly copied from
+        /// https://github.com/mabako/reddit-for-city-skylines/
         /// </summary>
         /// <param name="name">The name of the Citizen to return</param>
         /// <returns>A citizen with the name to create a Chirper method from</returns>
@@ -470,7 +468,7 @@ namespace TwitchChirperChat
         }
 
         /// <summary>
-        /// Resolve private assembly fields
+        /// Resolve private assembly fields. Copied from https://github.com/mabako/reddit-for-city-skylines/
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="obj"></param>
