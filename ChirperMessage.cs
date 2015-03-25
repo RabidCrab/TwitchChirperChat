@@ -1,0 +1,90 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+
+namespace TwitchChirperChat
+{
+    public class Message : MessageBase
+    {
+        private string m_author;
+        private string m_text;
+        private string m_keywords;
+        private uint m_citizenId;
+
+        /// <summary>
+        /// Generate a Chirper message
+        /// </summary>
+        /// <param name="author">The cim name</param>
+        /// <param name="text">The content of the message</param>
+        /// <param name="keywords">Currently unused, but this was used to pass icon keywords. I'm keeping it because I have an idea for it in the near future</param>
+        /// <param name="citizenId">The unique Id of the citizen</param>
+        public Message(string author, string text, string keywords, uint citizenId)
+        {
+            m_author = author;
+            m_keywords = keywords;
+            m_text = text;
+            m_citizenId = citizenId;
+
+            HashtagKeywords();
+        }
+
+        /// <summary>
+        /// Hashtag all of the icon keywords
+        /// </summary>
+        private void HashtagKeywords()
+        {
+            m_text = m_text.Replace("Kappa", "#Kappa");
+            m_text = m_text.Replace("Kreygasm", "#Kreygasm");
+        }
+
+        public override uint GetSenderID()
+        {
+            return m_citizenId;
+        }
+
+        public override string GetSenderName()
+        {
+            return m_author;
+        }
+
+        public override string GetText()
+        {
+            return m_text;
+        }
+
+        /// <summary>
+        /// We want to ensure the same messages aren't shown twice.
+        /// </summary>
+        /// <param name="other">The other message to compare against</param>
+        /// <returns>true if they're similar</returns>
+        public override bool IsSimilarMessage(MessageBase other)
+        {
+            return false;
+
+            // We don't want to suppress similar messages since it's a chat stream
+            //var m = other as Message;
+            //return m != null && (m.m_author == m_author);
+        }
+
+        public override void Serialize(ColossalFramework.IO.DataSerializer s)
+        {
+            s.WriteSharedString(m_author);
+            s.WriteSharedString(m_keywords);
+            s.WriteSharedString(m_text);
+            s.WriteUInt32(m_citizenId);
+        }
+
+        public override void Deserialize(ColossalFramework.IO.DataSerializer s)
+        {
+            m_author = s.ReadSharedString();
+            m_keywords = s.ReadSharedString();
+            m_text = s.ReadSharedString();
+            m_citizenId = s.ReadUInt32();
+        }
+
+        public override void AfterDeserialize(ColossalFramework.IO.DataSerializer s)
+        {
+        }
+    }
+}
