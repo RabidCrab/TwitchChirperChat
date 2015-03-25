@@ -1,0 +1,1 @@
+﻿This is a mod for Cities: Skylines that integrates the Twitch API, specifically Twitch chat and Twitch events.
