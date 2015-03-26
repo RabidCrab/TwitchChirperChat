@@ -23,6 +23,7 @@ namespace TwitchChirperChat
         public bool IsCitizenIdSet { get; private set; }
         public string Message { get; set; }
         public DateTime QueueTime { get; private set; }
+        public bool IsIrcUserMentioned { get; private set; }
 
         public QueuedChirperMessage(string citizenName, string message)
         {

@@ -2,7 +2,6 @@
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography;
 using System.Xml;
 using System.Xml.Serialization;
 using ColossalFramework.IO;
@@ -95,7 +94,7 @@ namespace TwitchChirperChat
                 var ircChannelComment = doc.CreateComment("The IRC channel is always the name of the streamer you want to watch. For instance, http://www.twitch.tv/manvsgame would mean I put manvsgame here. Joining multiple channels is not possible at this time");
                 doc.DocumentElement.InsertBefore(ircChannelComment, FindNode(doc.DocumentElement.ChildNodes, "IrcChannel"));
 
-                var delayBetweenChirperMessagesComment = doc.CreateComment("How many milliseconds to wait before sending a message. Default is 9000 which is 9 seconds. Minimum is 8");
+                var delayBetweenChirperMessagesComment = doc.CreateComment("How many milliseconds to wait before sending a message. Default is 8000 which is 8 seconds. Minimum is 8");
                 doc.DocumentElement.InsertBefore(delayBetweenChirperMessagesComment, FindNode(doc.DocumentElement.ChildNodes, "DelayBetweenChirperMessages"));
 
                 var maximumGeneralChatMessageQueueComment = doc.CreateComment("The maximum number of general chat messagess that can be queued before the queue is cleared. This number includes THE SUM OF subs, mods, and your own chats into the count");
@@ -211,12 +210,12 @@ namespace TwitchChirperChat
         {
             var configurationFile = new ConfigurationFile()
             {
-                UserName = "YourUserNameGoesHere",
-                OAuthKey = "oauth:000000000000000",
-                IrcChannel = "bacon_donut",
-                DelayBetweenChirperMessages = 9000,
-                MaximumGeneralChatMessageQueue = 40,
-                MaximumSubscriberChatMessageQueue = 20,
+                UserName = "chirpertestclient",
+                OAuthKey = "oauth:eqtt3b1vl3dxmthyyzo9l5f2clyj5s",
+                IrcChannel = "cleavetv",
+                DelayBetweenChirperMessages = 8000,
+                MaximumGeneralChatMessageQueue = 20,
+                MaximumSubscriberChatMessageQueue = 10,
                 MaximumModeratorChatMessageQueue = 10,
                 PrioritizePersonallyAddressedMessages = true,
                 NewSubscriberMessage = "Hey everyone, I just subscribed! #Newbie #WelcomeToTheParty",
