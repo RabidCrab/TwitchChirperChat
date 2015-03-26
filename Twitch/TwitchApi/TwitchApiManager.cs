@@ -14,6 +14,7 @@ namespace TwitchChirperChat.Twitch.TwitchApi
     public class TwitchApiManager : IDisposable
     {
         private readonly Timer _callTimer;
+        private volatile bool _isFirstCall = true;
 
         public string Channel { get; private set; }
 
@@ -65,9 +66,6 @@ namespace TwitchChirperChat.Twitch.TwitchApi
 
                 List<TwitchUser> newFollowers = new List<TwitchUser>();
 
-                // If it's the first call of the day we don't want to throw the event
-                bool isFirstCall = Followers.Count > 0;
-
                 // Add all the followers, and record the new ones in newFollowers to be passed through the event
                 foreach (object obj in follows)
                 {
@@ -87,9 +85,11 @@ namespace TwitchChirperChat.Twitch.TwitchApi
                     newFollowers.Add(newFollower);
                 }
 
-                if (newFollowers.Count > 0 && !isFirstCall)
+                if (newFollowers.Count > 0 && !_isFirstCall)
                     if (NewFollowers != null) 
                         NewFollowers(this, new NewFollowersEventArgs(newFollowers));
+
+                _isFirstCall = false;
             }
             catch (Exception ex)
             {
