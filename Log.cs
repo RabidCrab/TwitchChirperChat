@@ -1,4 +1,6 @@
 ﻿using System;
+using ColossalFramework.Plugins;
+using TwitchChirperChat.Twitch.TwitchIrc;
 using TwitchChirperChat.TwitchIrc;
 
 namespace TwitchChirperChat
@@ -20,13 +22,10 @@ namespace TwitchChirperChat
 
         public static void AddEntry(Exception ex)
         {
-            if (_adminIrc == null) return;
-            if (!_adminIrc.IsConnected) return;
-
-            _adminIrc.SendMessage(ex.GetType() + " - " + ex.Message);
+            DebugOutputPanel.AddMessage(PluginManager.MessageType.Message, ex.GetType() + " - " + ex.Message + " - " + ex.TargetSite + " - " + ex.StackTrace);
 
             if (ex.InnerException != null)
-                _adminIrc.SendMessage(ex.InnerException.GetType() + " - " + ex.InnerException.Message);
+                DebugOutputPanel.AddMessage(PluginManager.MessageType.Message, ex.InnerException.GetType() + " - " + ex.InnerException.Message + " - " + ex.InnerException.TargetSite + " - " + ex.InnerException.StackTrace);
         }
     }
 }

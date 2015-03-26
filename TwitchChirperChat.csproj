@@ -52,6 +52,9 @@
     <Reference Include="UnityEngine">
       <HintPath>..\..\..\..\..\Installed\Games\Steam\SteamApps\common\Cities_Skylines\Cities_Data\Managed\UnityEngine.dll</HintPath>
     </Reference>
+    <Reference Include="UnityEngine.UI">
+      <HintPath>..\..\..\..\..\Installed\Games\Steam\SteamApps\common\Cities_Skylines\Cities_Data\Managed\UnityEngine.UI.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ChirperExtension.cs" />
@@ -61,11 +64,13 @@
     <Compile Include="ModInfo.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="QueuedChirperMessage.cs" />
-    <Compile Include="TwitchIrc\ConnectionFailedException.cs" />
+    <Compile Include="SimpleJSON.cs" />
+    <Compile Include="Twitch\TwitchApi\TwitchApiManager.cs" />
+    <Compile Include="Twitch\TwitchIrc\ConnectionFailedException.cs" />
     <Compile Include="Log.cs" />
-    <Compile Include="TwitchIrc\IrcMessage.cs" />
-    <Compile Include="TwitchIrc\TwitchIrcClient.cs" />
-    <Compile Include="TwitchIrc\TwitchUser.cs" />
+    <Compile Include="Twitch\TwitchIrc\IrcMessage.cs" />
+    <Compile Include="Twitch\TwitchIrc\TwitchIrcClient.cs" />
+    <Compile Include="Twitch\TwitchUser.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="License.txt" />

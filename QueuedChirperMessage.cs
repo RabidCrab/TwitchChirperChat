@@ -25,21 +25,23 @@ namespace TwitchChirperChat
         public DateTime QueueTime { get; private set; }
         public bool IsIrcUserMentioned { get; private set; }
 
-        public QueuedChirperMessage(string citizenName, string message)
+        public QueuedChirperMessage(string citizenName, string message, bool isIrcUserMentioned = false)
         {
             IsCitizenIdSet = false;
             CitizenName = citizenName;
             Message = message;
             QueueTime = DateTime.Now;
+            IsIrcUserMentioned = isIrcUserMentioned;
         }
 
-        public QueuedChirperMessage(string citizenName, string message, uint citizenId)
+        public QueuedChirperMessage(string citizenName, string message, uint citizenId, bool isIrcUserMentioned = false)
         {
             _citizenId = citizenId;
             IsCitizenIdSet = true;
             CitizenName = citizenName;
             Message = message;
             QueueTime = DateTime.Now;
+            IsIrcUserMentioned = isIrcUserMentioned;
         }
     }
 }

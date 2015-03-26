@@ -6,8 +6,9 @@ using System.Linq;
 using System.Net.Sockets;
 using System.Text.RegularExpressions;
 using System.Threading;
+using TwitchChirperChat.TwitchIrc;
 
-namespace TwitchChirperChat.TwitchIrc
+namespace TwitchChirperChat.Twitch.TwitchIrc
 {
     /// <summary>
     /// Client for Twitch Irc to communicate with Twitch chat

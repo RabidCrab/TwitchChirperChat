@@ -10,6 +10,7 @@ namespace TwitchChirperChat.TwitchIrc
         public string UserName { get; set; }
         public DateTime? SubscribeDateTime { get; set; }
         public int MonthsSubscribed { get; set; }
+        public DateTime? FollowedDateTime { get; set; }
 
         public TwitchUser()
         {
