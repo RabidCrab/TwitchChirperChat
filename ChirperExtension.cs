@@ -1,25 +1,16 @@
-﻿using ICities;
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.Configuration;
-using System.Globalization;
-using System.IO;
 using System.Linq;
-using System.Net;
-using System.Net.Sockets;
 using System.Reflection;
-using System.Security.AccessControl;
-using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Timers;
-using System.Xml.Serialization;
 using ColossalFramework;
 using ColossalFramework.Plugins;
-using ColossalFramework.UI;
-using TwitchChirperChat;
+using ICities;
 using TwitchChirperChat.TwitchIrc;
 using UnityEngine;
+using Timer = System.Timers.Timer;
 
 namespace TwitchChirperChat
 {
@@ -37,7 +28,7 @@ namespace TwitchChirperChat
 
         private TwitchIrcClient _adminClient = new TwitchIrcClient();
 
-        private System.Timers.Timer _messageTimer;
+        private Timer _messageTimer;
 
         private List<KeyValuePair<MessagePriority, QueuedChirperMessage>> _messageQueue = new List<KeyValuePair<MessagePriority, QueuedChirperMessage>>();
 
@@ -65,21 +56,20 @@ namespace TwitchChirperChat
         /// </summary>
         public override void OnCreated(IChirper c)
         {
-            DebugOutputPanel.AddMessage(PluginManager.MessageType.Message, "Connecting to Irc");
+            Configuration.ReloadConfigFile();
 
             DebugOutputPanel.AddMessage(PluginManager.MessageType.Message,
                 "User Name: " + Configuration.ConfigurationSettings.UserName);
-            //DebugOutputPanel.AddMessage(PluginManager.MessageType.Message,
-            //    "Auth Key: " + Configuration.ConfigurationSettings.OAuthKey);
             DebugOutputPanel.AddMessage(PluginManager.MessageType.Message,
                 "Channel: " + Configuration.ConfigurationSettings.IrcChannel);
+            DebugOutputPanel.AddMessage(PluginManager.MessageType.Message, "Connecting to Irc...");
 
             // Hook up the Irc client events and execute a connection
             _ircClient.ChatMessageReceived += _ircClient_ChatMessageReceived;
             _ircClient.Disconnected += _ircClient_Disconnected;
-            _ircClient.Connect(Configuration.ConfigurationSettings.UserName,
-                Configuration.ConfigurationSettings.OAuthKey, Configuration.ConfigurationSettings.IrcChannel);
+            _ircClient.Connected += _ircClient_Connected;
             _ircClient.NewSubscriber += _ircClient_NewSubscriber;
+            _ircClient.Connect(Configuration.ConfigurationSettings.UserName, Configuration.ConfigurationSettings.OAuthKey, Configuration.ConfigurationSettings.IrcChannel);
 
             // Any exceptions are going to get posted to this Irc. It won't help me with Irc issues, but I'll be dealing with that soon
             _adminClient.ChatMessageReceived += _ircClient_ChatMessageReceived;
@@ -100,9 +90,10 @@ namespace TwitchChirperChat
                 _messageTimer = null;
             }
 
+            // Temporary. Posting exceptions via Irc isn't the best of ideas, but it's all I have for now
             Log.SetIrcClient(AdminClient);
 
-            _messageTimer = new System.Timers.Timer(9000) {AutoReset = true};
+            _messageTimer = new Timer(Configuration.ConfigurationSettings.DelayBetweenChirperMessages) {AutoReset = true};
             _messageTimer.Elapsed += _messageTimer_Elapsed;
             _messageTimer.Start();
 
@@ -115,6 +106,11 @@ namespace TwitchChirperChat
             {
                 Log.AddEntry(ex);
             }
+        }
+
+        void _ircClient_Connected(object source, ConnectedEventArgs e)
+        {
+            DebugOutputPanel.AddMessage(PluginManager.MessageType.Message, "Irc connected");
         }
 
         /// <summary>
@@ -136,22 +132,21 @@ namespace TwitchChirperChat
                     messagePair.Value.CitizenId = LookupCitizenId(messagePair.Value.CitizenName);
 
                 if (messagePair.Value.CitizenId != 0u)
-                {
-
                     MessageManager.instance.QueueMessage(new Message(messagePair.Value.CitizenName,
                         messagePair.Value.Message, "", messagePair.Value.CitizenId));
-                }
 
                 _messageQueue.Remove(messagePair);
-                // Clear out general chat
+
+                // Clear out general chat if there's too many messages
+                if (_messageQueue.Count > Configuration.ConfigurationSettings.MaximumGeneralChatMessageQueue)
                 _messageQueue.RemoveAll(x => x.Key == MessagePriority.GeneralChat);
 
                 // Still too many messages, get rid of sub chat
-                if (_messageQueue.Count > 20)
+                if (_messageQueue.Count > Configuration.ConfigurationSettings.MaximumSubscriberChatMessageQueue)
                     _messageQueue.RemoveAll(x => x.Key == MessagePriority.Subscriber);
 
                 // Still too many messages, get rid of mod chat
-                if (_messageQueue.Count > 10)
+                if (_messageQueue.Count > Configuration.ConfigurationSettings.MaximumModeratorChatMessageQueue)
                     _messageQueue.RemoveAll(x => x.Key == MessagePriority.Moderator);
             }
             catch (Exception ex)
@@ -162,11 +157,11 @@ namespace TwitchChirperChat
 
         void _ircClient_Disconnected(object source, DisconnectedEventArgs e)
         {
-            DebugOutputPanel.AddMessage(PluginManager.MessageType.Message, "Disconnected from Irc");
-
             // If it failed from an exception, clean everything up and notify the user the mod is shutting down
             if (e.ClosedException != null)
             {
+                DebugOutputPanel.AddMessage(PluginManager.MessageType.Message, "Error! Client was disconnected from Irc");
+
                 lock (_removalTargetCitizenMessage)
                     _removalTargetCitizenMessage = null;
 
@@ -181,33 +176,38 @@ namespace TwitchChirperChat
         /// <param name="e"></param>
         void _ircClient_NewSubscriber(object source, NewSubscriberEventArgs e)
         {
+            // Make sure the user wants to see new/repeat subs
+            if (!Configuration.ConfigurationSettings.ShowSubscriberMessages)
+                return;
+
             if (e.User.MonthsSubscribed < 2)
             {
-                AddMessage(e.User.UserName, "Hey everyone, I just subscribed! #Newbie #WelcomeToTheParty", false, true);
+                AddMessage(e.User.UserName, Configuration.ConfigurationSettings.NewSubscriberMessage, false, true);
                 return;
             }
 
             if (e.User.MonthsSubscribed < 6)
             {
                 AddMessage(e.User.UserName,
-                    String.Format("I've just subscribed for {0} months in a row! #BestSupporterEver",
-                        e.User.MonthsSubscribed.ToString()), false, true);
+                    String.Format(Configuration.ConfigurationSettings.RepeatSubscriberMessage, e.User.MonthsSubscribed.ToString()), false, true);
                 return;
             }
 
             if (e.User.MonthsSubscribed >= 6)
-                AddMessage(e.User.UserName, String.Format("I've been supporting the stream for {0} months in a row! #SeniorDiscount #GetOnMyLevel", e.User.MonthsSubscribed.ToString()), false, true);
+            {
+                AddMessage(e.User.UserName, String.Format(Configuration.ConfigurationSettings.SeniorSubscriberMessage, e.User.MonthsSubscribed.ToString()), false, true);
+                return;
+            }
         }
 
         /// <summary>
         /// Executed on each chat message received and parsed by the Irc client
         /// </summary>
         /// <param name="source">The IrcClient instance the call was made from</param>
+        /// <param name="e"></param>
         void _ircClient_ChatMessageReceived(object source, ChatMessageReceivedEventArgs e)
         {
-            //DebugOutputPanel.AddMessage(PluginManager.MessageType.Message, "Message: " + e.UserName + ": " + e.Message);
-
-            AddMessage(e.UserName, e.Message, false);
+            AddMessage(e.Message.User.UserName, e.Message.Message, false);
         }
 
         /// <summary>
@@ -228,7 +228,7 @@ namespace TwitchChirperChat
                 // I don't want all of my chats to be priority, but if I get a shout-out by a streamer I'd like to be able to say hi to everyone
                 // and have it at least look kinda cool with a snazzy hashtag.
                 // I'm so lonely
-                priority = MessagePriority.RabidCrab;
+                priority = MessagePriority.ModUser;
                 isCritical = true;
             }
             else if (isCritical)
@@ -260,8 +260,8 @@ namespace TwitchChirperChat
             if (IsPaused && !isCritical)
                 return;
 
-            if (text.Length > 160)
-                return;
+            if (text.Length > Configuration.ConfigurationSettings.MaximumMessageSize)
+                text = text.Substring(0, Configuration.ConfigurationSettings.MaximumMessageSize);
 
             // The citizen ID will not be pulled until the message makes it through the queue
             AddMessage(new QueuedChirperMessage(citizenName, text), isCritical, isNewSubscriber);
@@ -459,7 +459,7 @@ namespace TwitchChirperChat
             catch
             {
                 // not sure if this would happen often. Who knows.
-                DebugOutputPanel.AddMessage(ColossalFramework.Plugins.PluginManager.MessageType.Message, string.Format("[TwitchChriperChat] Failed to pick random citizen name for {0}", name));
+                DebugOutputPanel.AddMessage(PluginManager.MessageType.Message, string.Format("[TwitchChriperChat] Failed to pick random citizen name for {0}", name));
             }
 
             // Either we have no people, or we have some people but couldn't find anyone to use for our purposes,
@@ -487,12 +487,11 @@ namespace TwitchChirperChat
 
     public enum MessagePriority
     {
-        RabidCrab = 1, // Not actually used, but it's here for future updates
-        Critical = 2, // Program exceptions will be posted via here
-        ModUser = 3, // The user themselves
-        NewSubscriber = 4, // Yay, new/repeat subscribers!
-        Moderator = 5, 
-        Subscriber = 6,
-        GeneralChat = 7, // General chat is cleared out after each chat grab
+        Critical = 1, // Program exceptions will be posted via here
+        ModUser = 2, // The user themselves
+        NewSubscriber = 3, // Yay, new/repeat subscribers!
+        Moderator = 4, 
+        Subscriber = 5,
+        GeneralChat = 6, // General chat is cleared out after each chat grab
     }
 }

@@ -1,13 +1,11 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
-using System.Text;
+using System.Security.Cryptography;
 using System.Xml;
 using System.Xml.Serialization;
 using ColossalFramework.IO;
-using ColossalFramework.Plugins;
 
 namespace TwitchChirperChat
 {
@@ -41,14 +39,29 @@ namespace TwitchChirperChat
         /// </summary>
         static Configuration()
         {
-            if (!File.Exists(Configuration.ConfigPath))
+            ReloadConfigFile();
+        }
+
+        /// <summary>
+        /// Reload the config from the file
+        /// </summary>
+        public static void ReloadConfigFile()
+        {
+            if (!File.Exists(ConfigPath))
             {
                 ConfigurationSettings = CreateDefaultConfig();
                 Serialize(ConfigPath, ConfigurationSettings);
             }
             else
                 ConfigurationSettings = Deserialize(ConfigPath);
+        }
 
+        /// <summary>
+        /// Save the configuration
+        /// </summary>
+        public static void SaveConfigFile()
+        {
+            Serialize(ConfigPath, ConfigurationSettings);
         }
 
         /// <summary>
@@ -57,7 +70,7 @@ namespace TwitchChirperChat
         /// <param name="filename"></param>
         /// <param name="config"></param>
         [SuppressMessage("ReSharper", "PossibleNullReferenceException")]
-        internal static void Serialize(string filename, ConfigurationFile config)
+        private static void Serialize(string filename, ConfigurationFile config)
         {
             try
             {
@@ -82,8 +95,62 @@ namespace TwitchChirperChat
                 var ircChannelComment = doc.CreateComment("The IRC channel is always the name of the streamer you want to watch. For instance, http://www.twitch.tv/manvsgame would mean I put manvsgame here. Joining multiple channels is not possible at this time");
                 doc.DocumentElement.InsertBefore(ircChannelComment, FindNode(doc.DocumentElement.ChildNodes, "IrcChannel"));
 
+                var delayBetweenChirperMessagesComment = doc.CreateComment("How many milliseconds to wait before sending a message. Default is 9000 which is 9 seconds. Minimum is 8");
+                doc.DocumentElement.InsertBefore(delayBetweenChirperMessagesComment, FindNode(doc.DocumentElement.ChildNodes, "DelayBetweenChirperMessages"));
+
+                var maximumGeneralChatMessageQueueComment = doc.CreateComment("The maximum number of general chat messagess that can be queued before the queue is cleared. This number includes THE SUM OF subs, mods, and your own chats into the count");
+                doc.DocumentElement.InsertBefore(maximumGeneralChatMessageQueueComment, FindNode(doc.DocumentElement.ChildNodes, "MaximumGeneralChatMessageQueue"));
+
+                var maximumSubscriberChatMessageQueueComment = doc.CreateComment("The maximum number of subscriber chat messages that can be queued before the queue is cleared. This number includes THE SUM OF mods, and your own chats into the count");
+                doc.DocumentElement.InsertBefore(maximumSubscriberChatMessageQueueComment, FindNode(doc.DocumentElement.ChildNodes, "MaximumSubscriberChatMessageQueue"));
+
+                var maximumModeratorChatMessageQueueComment = doc.CreateComment("The maximum number of subscriber chat messagess that can be queued before the queue is cleared. This number includes your own chats into the count");
+                doc.DocumentElement.InsertBefore(maximumModeratorChatMessageQueueComment, FindNode(doc.DocumentElement.ChildNodes, "MaximumModeratorChatMessageQueue"));
+
+                var prioritizePersonallyAddressedMessagesComment = doc.CreateComment("Prioritize any chats with @YourName in them");
+                doc.DocumentElement.InsertBefore(prioritizePersonallyAddressedMessagesComment, FindNode(doc.DocumentElement.ChildNodes, "PrioritizePersonallyAddressedMessages"));
+
+                var newSubscriberMessageComment = doc.CreateComment("New sub comment");
+                doc.DocumentElement.InsertBefore(newSubscriberMessageComment, FindNode(doc.DocumentElement.ChildNodes, "NewSubscriberMessage"));
+
+                var repeatSubscriberMessageComment = doc.CreateComment("The {0} is the number of months subscribed");
+                doc.DocumentElement.InsertBefore(repeatSubscriberMessageComment, FindNode(doc.DocumentElement.ChildNodes, "RepeatSubscriberMessage"));
+
+                var seniorSubscriberMessageComment = doc.CreateComment("The {0} is the number of months subscribed");
+                doc.DocumentElement.InsertBefore(seniorSubscriberMessageComment, FindNode(doc.DocumentElement.ChildNodes, "SeniorSubscriberMessage"));
+
+                var showSubscriberMessagesComment = doc.CreateComment("If you want to see the messages above, keep true");
+                doc.DocumentElement.InsertBefore(showSubscriberMessagesComment, FindNode(doc.DocumentElement.ChildNodes, "ShowSubscriberMessages"));
+
+                var renameCitizensToLoggedInUsersComment = doc.CreateComment("Highly recommended you do not change this unless there's a conflict with another mod");
+                doc.DocumentElement.InsertBefore(renameCitizensToLoggedInUsersComment, FindNode(doc.DocumentElement.ChildNodes, "RenameCitizensToLoggedInUsers"));
+
+                var renameCitizensToFollowersComment = doc.CreateComment("Renames citizens to followers");
+                doc.DocumentElement.InsertBefore(renameCitizensToFollowersComment, FindNode(doc.DocumentElement.ChildNodes, "RenameCitizensToFollowers"));
+
+                var showGeneralChatMessagesComment = doc.CreateComment("Show general chat messages in chirper");
+                doc.DocumentElement.InsertBefore(showGeneralChatMessagesComment, FindNode(doc.DocumentElement.ChildNodes, "ShowGeneralChatMessages"));
+
+                var showSubscriberChatMessagesComment = doc.CreateComment("Show subscriber chat messages in chirper");
+                doc.DocumentElement.InsertBefore(showSubscriberChatMessagesComment, FindNode(doc.DocumentElement.ChildNodes, "ShowSubscriberChatMessages"));
+
+                var showModeratorChatMessagesComment = doc.CreateComment("Show moderator chat messages in chirper");
+                doc.DocumentElement.InsertBefore(showModeratorChatMessagesComment, FindNode(doc.DocumentElement.ChildNodes, "ShowModeratorChatMessages"));
+
+                var newFollowersMessageComment = doc.CreateComment("The {0} is a comma delineated list of new followers");
+                doc.DocumentElement.InsertBefore(newFollowersMessageComment, FindNode(doc.DocumentElement.ChildNodes, "NewFollowersMessage"));
+
+                var showNewFollowersMessageComment = doc.CreateComment("Show the new followers message");
+                doc.DocumentElement.InsertBefore(showNewFollowersMessageComment, FindNode(doc.DocumentElement.ChildNodes, "ShowNewFollowersMessage"));
+
+                var showDefaultChirperMessagesComment = doc.CreateComment("Shows the default game chirper messages");
+                doc.DocumentElement.InsertBefore(showDefaultChirperMessagesComment, FindNode(doc.DocumentElement.ChildNodes, "ShowDefaultChirperMessages"));
+
+                var maximumMessageSizeComment = doc.CreateComment("The maximum length a message can be before it's trimmed down");
+                doc.DocumentElement.InsertBefore(maximumMessageSizeComment, FindNode(doc.DocumentElement.ChildNodes, "MaximumMessageSize"));
+                
                 // Save it to the file
-                using (var fileWriter = System.IO.File.CreateText(filename))
+                using (var fileWriter = File.CreateText(filename))
                 {
                     doc.Save(fileWriter);
                 }
@@ -92,34 +159,6 @@ namespace TwitchChirperChat
             {
                 Log.AddEntry(ex);
             }
-        }
-
-        /// <summary>
-        /// Nodes are not always easy to find. This helper method makes searching for them much easier. Code found at 
-        /// http://stackoverflow.com/questions/2797238/search-for-nodes-by-name-in-xmldocument
-        /// </summary>
-        /// <param name="list">The list of nodes to begin the search</param>
-        /// <param name="nodeName">The name of the node to search for</param>
-        /// <returns>The target node, or null if not found</returns>
-        private static XmlNode FindNode(XmlNodeList list, string nodeName)
-        {
-            if (list.Count > 0)
-            {
-                foreach (XmlNode node in list)
-                {
-                    if (node.Name.Equals(nodeName)) return node;
-
-                    if (node.HasChildNodes)
-                    {
-                        XmlNode nodeFound = FindNode(node.ChildNodes, nodeName);
-
-                        if (nodeFound != null)
-                            return nodeFound;
-                    }
-                }
-            }
-
-            return null;
         }
 
         /// <summary>
@@ -170,13 +209,60 @@ namespace TwitchChirperChat
         /// <returns>ConfigurationFile with all default values</returns>
         private static ConfigurationFile CreateDefaultConfig()
         {
-            var configurationFile = new ConfigurationFile();
-
-            configurationFile.UserName = "YourUserNameGoesHere";
-            configurationFile.OAuthKey = "oauth:000000000000000";
-            configurationFile.IrcChannel = "bacon_donut";
+            var configurationFile = new ConfigurationFile()
+            {
+                UserName = "YourUserNameGoesHere",
+                OAuthKey = "oauth:000000000000000",
+                IrcChannel = "bacon_donut",
+                DelayBetweenChirperMessages = 9000,
+                MaximumGeneralChatMessageQueue = 40,
+                MaximumSubscriberChatMessageQueue = 20,
+                MaximumModeratorChatMessageQueue = 10,
+                PrioritizePersonallyAddressedMessages = true,
+                NewSubscriberMessage = "Hey everyone, I just subscribed! #Newbie #WelcomeToTheParty",
+                RepeatSubscriberMessage = "I've just subscribed for {0} months in a row! #BestSupporterEver",
+                SeniorSubscriberMessage = "I've been supporting the stream for {0} months in a row! #SeniorDiscount #GetOnMyLevel",
+                ShowSubscriberMessages = true,
+                RenameCitizensToLoggedInUsers = true,
+                RenameCitizensToFollowers = true,
+                ShowGeneralChatMessages = true,
+                ShowSubscriberChatMessages = true,
+                ShowModeratorChatMessages = true,
+                NewFollowersMessage = "Welcome {0}, thanks for following!",
+                ShowNewFollowersMessage = true,
+                ShowDefaultChirperMessages = false,
+                MaximumMessageSize = 240,
+            };
 
             return configurationFile;
+        }
+
+        /// <summary>
+        /// Nodes are not always easy to find. This helper method makes searching for them much easier. Code found at 
+        /// http://stackoverflow.com/questions/2797238/search-for-nodes-by-name-in-xmldocument
+        /// </summary>
+        /// <param name="list">The list of nodes to begin the search</param>
+        /// <param name="nodeName">The name of the node to search for</param>
+        /// <returns>The target node, or null if not found</returns>
+        private static XmlNode FindNode(XmlNodeList list, string nodeName)
+        {
+            if (list.Count > 0)
+            {
+                foreach (XmlNode node in list)
+                {
+                    if (node.Name.Equals(nodeName)) return node;
+
+                    if (node.HasChildNodes)
+                    {
+                        XmlNode nodeFound = FindNode(node.ChildNodes, nodeName);
+
+                        if (nodeFound != null)
+                            return nodeFound;
+                    }
+                }
+            }
+
+            return null;
         }
     }
 }

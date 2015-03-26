@@ -63,8 +63,13 @@
     <Compile Include="QueuedChirperMessage.cs" />
     <Compile Include="TwitchIrc\ConnectionFailedException.cs" />
     <Compile Include="Log.cs" />
+    <Compile Include="TwitchIrc\IrcMessage.cs" />
     <Compile Include="TwitchIrc\TwitchIrcClient.cs" />
     <Compile Include="TwitchIrc\TwitchUser.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="License.txt" />
+    <Content Include="Readme.txt" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>

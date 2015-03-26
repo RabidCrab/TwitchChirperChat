@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+﻿using ColossalFramework.IO;
 
 namespace TwitchChirperChat
 {
@@ -67,7 +64,7 @@ namespace TwitchChirperChat
             return false;
         }
 
-        public override void Serialize(ColossalFramework.IO.DataSerializer s)
+        public override void Serialize(DataSerializer s)
         {
             s.WriteSharedString(m_author);
             s.WriteSharedString(m_keywords);
@@ -75,7 +72,7 @@ namespace TwitchChirperChat
             s.WriteUInt32(m_citizenId);
         }
 
-        public override void Deserialize(ColossalFramework.IO.DataSerializer s)
+        public override void Deserialize(DataSerializer s)
         {
             m_author = s.ReadSharedString();
             m_keywords = s.ReadSharedString();
@@ -83,7 +80,7 @@ namespace TwitchChirperChat
             m_citizenId = s.ReadUInt32();
         }
 
-        public override void AfterDeserialize(ColossalFramework.IO.DataSerializer s)
+        public override void AfterDeserialize(DataSerializer s)
         {
         }
     }

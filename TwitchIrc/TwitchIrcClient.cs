@@ -3,11 +3,9 @@ using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
-using System.Text;
+using System.Net.Sockets;
 using System.Text.RegularExpressions;
 using System.Threading;
-using ColossalFramework.Plugins;
-using UnityEngine;
 
 namespace TwitchChirperChat.TwitchIrc
 {
@@ -22,12 +20,12 @@ namespace TwitchChirperChat.TwitchIrc
         /// All the login information for Irc
         /// </summary>
         public string UserName { get; private set; }
-        private string _password;
+        private string _oauthToken;
         private string _channel;
 
-        private System.Net.Sockets.TcpClient _tcpClient = new System.Net.Sockets.TcpClient();
-        private System.IO.TextReader _inputReader;
-        private System.IO.TextWriter _outputWriter;
+        private TcpClient _tcpClient = new TcpClient();
+        private TextReader _inputReader;
+        private TextWriter _outputWriter;
 
         public bool IsConnected
         {
@@ -67,17 +65,17 @@ namespace TwitchChirperChat.TwitchIrc
 
         #region User Lists
         /// <summary>
-        /// A list of all the subscribers in the channel. The key is the username
+        /// A list of all the subscribers in the channel. The key is the username, the TwitchUser is not necessarily unique
         /// </summary>
         public Dictionary<string, TwitchUser> Subscribers { get; private set; }
 
         /// <summary>
-        /// A list of all the moderators in the channel. The key is the username
+        /// A list of all the moderators in the channel. The key is the username, the TwitchUser is not necessarily unique
         /// </summary>
         public Dictionary<string, TwitchUser> Moderators { get; private set; }
 
         /// <summary>
-        /// A list of all the users in the channel. This includes Moderators and Subscribers. The key is the username
+        /// A list of all the users in the channel. This includes Moderators and Subscribers. The key is the username, the TwitchUser is not necessarily unique
         /// </summary>
         public Dictionary<string, TwitchUser> LoggedInUsers { get; private set; }
         #endregion
@@ -121,7 +119,7 @@ namespace TwitchChirperChat.TwitchIrc
             // For the userName I didn't automatically move it to all lowercase because some people want their names cased properly. The problem is that this
             // will likely be a sticking point for people. I'll make sure to litter the documentation with this caveat
             UserName = userName;
-            _password = password;
+            _oauthToken = password;
             _channel = channel.ToLowerInvariant();
 
             _workerThread.Start();
@@ -145,12 +143,12 @@ namespace TwitchChirperChat.TwitchIrc
                 // Yay we're connected
                 if (Connected != null) Connected(this, new ConnectedEventArgs());
 
-                _inputReader = new System.IO.StreamReader(_tcpClient.GetStream());
-                _outputWriter = new System.IO.StreamWriter(_tcpClient.GetStream());
+                _inputReader = new StreamReader(_tcpClient.GetStream());
+                _outputWriter = new StreamWriter(_tcpClient.GetStream());
 
                 // Pass the user and oauth token out
                 _outputWriter.Write(
-                    "PASS " + _password + "\r\n" +
+                    "PASS " + _oauthToken + "\r\n" +
                     "NICK " + UserName + "\r\n"
                 );
                 _outputWriter.Flush();
@@ -304,11 +302,10 @@ namespace TwitchChirperChat.TwitchIrc
                     if (_channel == "chirpertestclient" && userName != "rabidcrabgt" && !Regex.IsMatch(message, "#moddev", RegexOptions.IgnoreCase))
                         break;
 
-                    // It could be a twitch notification, let's check it out
+                    // It could be a twitch notification we care about, let's check it out
                     if (userName == "twitchnotify")
                     {
-                        Console.WriteLine(buffer);
-                        // A new subscriber, sweet
+                        // A new or repeat subscriber, sweet
                         if (buffer.Contains("subscribed"))
                         {
                             TwitchUser newSubscriber;
@@ -341,13 +338,25 @@ namespace TwitchChirperChat.TwitchIrc
                                 }
                             }
 
-                            // Gotta spread the news
                             if (NewSubscriber != null) NewSubscriber(this, new NewSubscriberEventArgs(newSubscriber));
                         }
                     }
 
-                    // Who can't wait for C# 5? I CAN'T JESUS CHRIST THE NULL CHECKS MAKE IT STOP WHERE'S MY ?. OPERATOR
-                    if (ChatMessageReceived != null) ChatMessageReceived(this, new ChatMessageReceivedEventArgs(userName, message));
+                    // If there's someone to send it to, pretty it up and send it out
+                    if (ChatMessageReceived != null)
+                    {
+                        TwitchUser targetTwitchUser;
+                        // The user won't always be here. If someone immediately joins and says "Hey guys!", they probably won't actually be in here.
+                        // Twitch queues all the joins and sends them out every 10 seconds, so my program might not have gotten the memo yet
+                        if (!LoggedInUsers.TryGetValue(userName, out targetTwitchUser))
+                        {
+                            targetTwitchUser = new TwitchUser() { UserName = userName };
+                            LoggedInUsers.Add(targetTwitchUser.UserName, targetTwitchUser);
+                        }
+
+                        IrcMessage ircMessage = new IrcMessage(targetTwitchUser, UserName, _channel, message);
+                        ChatMessageReceived(this, new ChatMessageReceivedEventArgs(ircMessage));
+                    }
                     break;
             }
         }
@@ -382,12 +391,10 @@ namespace TwitchChirperChat.TwitchIrc
 
     public class ChatMessageReceivedEventArgs : EventArgs
     {
-        public string UserName { get; set; }
-        public string Message { get; set; }
+        public IrcMessage Message;
 
-        public ChatMessageReceivedEventArgs(string userName, string message)
+        public ChatMessageReceivedEventArgs(IrcMessage message)
         {
-            UserName = userName;
             Message = message;
         }
     }
