@@ -62,15 +62,18 @@
     <Compile Include="Configuration.cs" />
     <Compile Include="ConfigurationFile.cs" />
     <Compile Include="ModInfo.cs" />
+    <Compile Include="UI\UIThreadManager.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="QueuedChirperMessage.cs" />
     <Compile Include="SimpleJSON.cs" />
+    <Compile Include="UI\UIManager.cs" />
     <Compile Include="Twitch\TwitchApi\TwitchApiManager.cs" />
     <Compile Include="Twitch\TwitchIrc\ConnectionFailedException.cs" />
     <Compile Include="Log.cs" />
     <Compile Include="Twitch\TwitchIrc\IrcMessage.cs" />
     <Compile Include="Twitch\TwitchIrc\TwitchIrcClient.cs" />
     <Compile Include="Twitch\TwitchUser.cs" />
+    <Compile Include="UI\ConfigurationPanel.cs" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="License.txt" />

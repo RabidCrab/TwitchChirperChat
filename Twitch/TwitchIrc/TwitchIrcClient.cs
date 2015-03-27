@@ -15,7 +15,7 @@ namespace TwitchChirperChat.Twitch.TwitchIrc
     /// </summary>
     public class TwitchIrcClient : IDisposable
     {
-        private readonly Thread _workerThread;
+        private Thread _workerThread;
 
         /// <summary>
         /// All the login information for Irc
@@ -127,6 +127,32 @@ namespace TwitchChirperChat.Twitch.TwitchIrc
         }
 
         /// <summary>
+        /// Reconnect to Twitch Irc and begin reading/writing to the Irc
+        /// </summary>
+        /// <param name="userName">The Twitch username. This is case sensitive! If you don't know the proper casing, do all lowercase!</param>
+        /// <param name="password">The password always starts with oauth. If you do not have an oauth token, go to http://twitchapps.com/tmi/ and make one</param>
+        /// <param name="channel">The channel you want to connect to. For example, if you want to watch TheOddOne's channel, you'd pass #theoddone</param>
+        public void Reconnect(string userName, string password, string channel)
+        {
+            _shouldStop = true;
+
+            // For the userName I didn't automatically move it to all lowercase because some people want their names cased properly. The problem is that this
+            // will likely be a sticking point for people. I'll make sure to litter the documentation with this caveat
+            UserName = userName;
+            _oauthToken = password;
+            _channel = channel.ToLowerInvariant();
+
+            _workerThread.Join();
+            _shouldStop = false;
+            _tcpClient = new TcpClient();
+            Subscribers = new Dictionary<string, TwitchUser>();
+            Moderators = new Dictionary<string, TwitchUser>();
+            LoggedInUsers = new Dictionary<string, TwitchUser>();
+            _workerThread = new Thread(this.DoWork);
+            _workerThread.Start();
+        }
+
+        /// <summary>
         /// Run once the thread begins, this is where the magic happens
         /// </summary>
         [SuppressMessage("ReSharper", "JoinDeclarationAndInitializer")] // inputReader and outputWriter can't have their declarations joined due to the tcpClient needing to connect first
@@ -212,6 +238,7 @@ namespace TwitchChirperChat.Twitch.TwitchIrc
                 if (Disconnected != null) Disconnected(this, new DisconnectedEventArgs(ex));
             }
 
+            _shouldStop = false;
             // The stream is complete, notify of a clean disconnect
             if (Disconnected != null) Disconnected(this, new DisconnectedEventArgs(null));
         }

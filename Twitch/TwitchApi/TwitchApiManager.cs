@@ -72,17 +72,25 @@ namespace TwitchChirperChat.Twitch.TwitchApi
                     JsonObject follow = (JsonObject)obj;
                     JsonObject user = (JsonObject)follow["user"];
 
-                    var newFollower = new TwitchUser()
+                    DateTime followDateTime;
+                    if (DateTime.TryParse(follow["created_at"].ToString(), out followDateTime))
                     {
-                        UserName = user["display_name"].ToString(),
-                        FollowedDateTime = DateTime.Parse(follow["created_at"].ToString()),
-                    };
+                        var newFollower = new TwitchUser()
+                        {
+                            UserName = user["display_name"].ToString(),
+                            FollowedDateTime = followDateTime,
+                        };
+                    
+                        if (Followers.Contains(newFollower))
+                            continue;
 
-                    if (Followers.Contains(newFollower))
-                        continue;
-
-                    Followers.Add(newFollower);
-                    newFollowers.Add(newFollower);
+                        Followers.Add(newFollower);
+                        newFollowers.Add(newFollower);
+                    }
+                    else
+                    {
+                        DebugOutputPanel.AddMessage(PluginManager.MessageType.Message, "Can't parse " + follow["created_at"].ToString() + " to a DateTime");
+                    }
                 }
 
                 if (newFollowers.Count > 0 && !_isFirstCall)

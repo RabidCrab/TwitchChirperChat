@@ -94,7 +94,7 @@ namespace TwitchChirperChat
                 var ircChannelComment = doc.CreateComment("The IRC channel is always the name of the streamer you want to watch. For instance, http://www.twitch.tv/manvsgame would mean I put manvsgame here. Joining multiple channels is not possible at this time");
                 doc.DocumentElement.InsertBefore(ircChannelComment, FindNode(doc.DocumentElement.ChildNodes, "IrcChannel"));
 
-                var delayBetweenChirperMessagesComment = doc.CreateComment("How many milliseconds to wait before sending a message. Default is 8000 which is 8 seconds. Minimum is 8");
+                var delayBetweenChirperMessagesComment = doc.CreateComment("How many milliseconds to wait before sending a message. Default is 8000 which is 8 seconds. Minimum is 250");
                 doc.DocumentElement.InsertBefore(delayBetweenChirperMessagesComment, FindNode(doc.DocumentElement.ChildNodes, "DelayBetweenChirperMessages"));
 
                 var maximumGeneralChatMessageQueueComment = doc.CreateComment("The maximum number of general chat messagess that can be queued before the queue is cleared. This number includes THE SUM OF subs, mods, and your own chats into the count");
