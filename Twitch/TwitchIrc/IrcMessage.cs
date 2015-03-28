@@ -12,6 +12,8 @@ namespace TwitchChirperChat.Twitch.TwitchIrc
         public string IrcChannel { get; private set; }
         public string IrcUserName { get; private set; }
         public string Message { get; private set; }
+        public bool IsUserFeedback { get; private set; }
+
         /// <summary>
         /// Returns true if the IrcUserName is found in Message
         /// </summary>
@@ -20,12 +22,13 @@ namespace TwitchChirperChat.Twitch.TwitchIrc
             get { return Regex.IsMatch(Message, "@" + IrcUserName, RegexOptions.IgnoreCase); }
         }
 
-        public IrcMessage(TwitchUser user, string ircUserName, string ircChannel, string message)
+        public IrcMessage(TwitchUser user, string ircUserName, string ircChannel, string message, bool isError = false)
         {
             User = user;
             IrcChannel = ircChannel;
             Message = message;
             IrcUserName = ircUserName;
+            IsUserFeedback = isError;
         }
     }
 }

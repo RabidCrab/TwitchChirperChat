@@ -235,7 +235,7 @@ namespace TwitchChirperChat.Twitch.TwitchIrc
                 // it disconnected with an exception
                 Log.AddEntry(ex);
 
-                if (Disconnected != null) Disconnected(this, new DisconnectedEventArgs(ex));
+                if (Disconnected != null) Disconnected(this, new DisconnectedEventArgs("Exception: " + ex.Message));
             }
 
             _shouldStop = false;
@@ -274,6 +274,36 @@ namespace TwitchChirperChat.Twitch.TwitchIrc
                         "JOIN " + "#" + _channel + "\r\n"
                     );
                     outputWriter.Flush();
+                    TwitchUser loginSuccessfulTwitchUser;
+                        // The user won't always be here. If someone immediately joins and says "Hey guys!", they probably won't actually be in here.
+                        // Twitch queues all the joins and sends them out every 10 seconds, so my program might not have gotten the memo yet
+                    if (!LoggedInUsers.TryGetValue("twitch", out loginSuccessfulTwitchUser))
+                        {
+                            loginSuccessfulTwitchUser = new TwitchUser() { UserName = "twitch" };
+                            LoggedInUsers.Add(loginSuccessfulTwitchUser.UserName, loginSuccessfulTwitchUser);
+                        }
+
+                    if (ChatMessageReceived != null) ChatMessageReceived(this, new ChatMessageReceivedEventArgs(new IrcMessage(loginSuccessfulTwitchUser, UserName, _channel, "Login successful! Currently logged in as " + UserName + " and listening to " + _channel, true)));
+                     
+                    break;
+                // Looks like login failed
+                case "NOTICE":
+                    var noticeMessage = buffer.Substring(NthIndexOf(buffer, ":", 2) + 1, (buffer.Length - NthIndexOf(buffer, ":", 2)) - 1);
+
+                    if (noticeMessage.Contains("Login unsuccessful"))
+                    {
+                        TwitchUser targetTwitchUser;
+                        // The user won't always be here. If someone immediately joins and says "Hey guys!", they probably won't actually be in here.
+                        // Twitch queues all the joins and sends them out every 10 seconds, so my program might not have gotten the memo yet
+                        if (!LoggedInUsers.TryGetValue("twitch", out targetTwitchUser))
+                        {
+                            targetTwitchUser = new TwitchUser() { UserName = "twitch" };
+                            LoggedInUsers.Add(targetTwitchUser.UserName, targetTwitchUser);
+                        }
+
+                        if (ChatMessageReceived != null) ChatMessageReceived(this, new ChatMessageReceivedEventArgs(new IrcMessage(targetTwitchUser, UserName, _channel, "Login failed! Are you sure you have the right username and oauth key?", true)));
+                        if (Disconnected != null) Disconnected(this, new DisconnectedEventArgs("Login failed!"));
+                    }
                     break;
                 // Time to start getting all of the logged in users
                 case "353":
@@ -456,11 +486,11 @@ namespace TwitchChirperChat.Twitch.TwitchIrc
         /// <summary>
         /// If the client disconnected due to an unexpected exception, it will be passed here. A null value means a clean disconnect
         /// </summary>
-        public Exception ClosedException { get; private set; }
+        public string Message { get; private set; }
 
-        public DisconnectedEventArgs(Exception exception)
+        public DisconnectedEventArgs(string message)
         {
-            ClosedException = exception;
+            Message = message;
         }
     }
     #endregion

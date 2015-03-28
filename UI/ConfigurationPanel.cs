@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Sockets;
 using System.Text;
 using ColossalFramework.Plugins;
 using ColossalFramework.UI;
@@ -11,8 +12,16 @@ namespace TwitchChirperChat.UI
     public class ConfigurationPanel : UIPanel
     {
         private ChirpPanel _chirpPanel;
-        private volatile bool _ircSettingsChanged = false;
 
+        private UITextField _twitchUserNameTextField;
+        private UITextField _oauthKeyTextField;
+        private UITextField _channelTextField;
+        private UITextField _delayBetweenChirperMessagesTextField;
+        //private UITextField _;
+
+        /// <summary>
+        /// Partially copied from https://github.com/AtheMathmo/SuperChirperMod
+        /// </summary>
         public override void Start()
         {
             _chirpPanel = GameObject.Find("ChirperPanel").GetComponent<ChirpPanel>();
@@ -23,7 +32,7 @@ namespace TwitchChirperChat.UI
             this.backgroundSprite = "ChirperBubble";
             this.color = new Color32(122, 132, 138, 255);
             this.width = 550;
-            this.height = 500;
+            this.height = 650;
             this.transformPosition = new Vector3(-1.6f, 0.9f);
 
             // Allow automated layout
@@ -41,140 +50,135 @@ namespace TwitchChirperChat.UI
             titleLabel.textColor = new Color32(36, 202, 255, 255);
             titleLabel.textAlignment = UIHorizontalAlignment.Center;
 
-            // Add all the buttons and textboxes for the options panel
-
-            //UIButton muteButton = AddNewButton("Mute");
-            //UIButton filterButton = AddNewButton("Filters: OFF");
-            //UIButton hashTagsButton = AddNewButton("HashTags: ON");
-
-            AddNewLabel("Twitch User Name: ");
+            // Yay UI stuff!
+            AddNewLabel("(Optional) Twitch User Name: ");
             UITextField twitchUserNameTextField =
                 AddNewTextField(Configuration.ConfigurationSettings.UserName);
-            twitchUserNameTextField.eventTextChanged += twitchUserNameTextField_eventTextChanged;
+            _twitchUserNameTextField = twitchUserNameTextField;
 
-            AddNewLabel("Twitch OAuth Key. Should look like 'oauth:000aaa000bbb00' \nGet you oauth key from http://twitchapps.com/tmi/: ");
+            AddNewLabel("(Optional) Twitch OAuth Key. Should look like 'oauth:000aaa000bbb00' \nGet you oauth key from http://twitchapps.com/tmi/: ");
             UITextField oauthKeyTextField =
                 AddNewTextField(Configuration.ConfigurationSettings.OAuthKey, false, true);
-            oauthKeyTextField.eventTextChanged += oauthKeyTextField_eventTextChanged;
+            oauthKeyTextField.maxLength = 200;
+            _oauthKeyTextField = oauthKeyTextField;
 
             AddNewLabel("Chat Channel. If you want to watch http://www.twitch.tv/cleavetv, \nyou would input 'cleavetv' here: ");
             UITextField channelTextField =
                 AddNewTextField(Configuration.ConfigurationSettings.IrcChannel);
-            channelTextField.eventTextChanged += channelTextFieldTextField_eventTextChanged;
+            _channelTextField = channelTextField;
 
             AddNewLabel("Delay Between Chirper Messages In Milliseconds:");
             UITextField delayBetweenChirperMessagesTextField =
                 AddNewTextField(Configuration.ConfigurationSettings.DelayBetweenChirperMessages.ToString(), true);
-            delayBetweenChirperMessagesTextField.eventTextChanged += delayBetweenChirperMessagesTextField_eventTextChanged;
+            _delayBetweenChirperMessagesTextField = delayBetweenChirperMessagesTextField;
+
+            // Buttons!
+            UIButton showGeneralChatMessages = AddNewButton("Show General Chat Messages: " + (Configuration.ConfigurationSettings.ShowGeneralChatMessages ? "ON" : "OFF"));
+            showGeneralChatMessages.eventClick += showGeneralChatMessages_eventClick;
+            UIButton showSubscriberChatMessages = AddNewButton("Show Subscriber Chat Messages: " + (Configuration.ConfigurationSettings.ShowSubscriberMessages ? "ON" : "OFF"));
+            showSubscriberChatMessages.eventClick += showSubscriberChatMessages_eventClick;
+            UIButton showModeratorChatMessages = AddNewButton("Show Moderator Chat Messages: " + (Configuration.ConfigurationSettings.ShowModeratorChatMessages ? "ON" : "OFF"));
+            showModeratorChatMessages.eventClick += showModeratorChatMessages_eventClick;
+            UIButton showNewFollowersMessage = AddNewButton("Show New Followers Messages: " + (Configuration.ConfigurationSettings.ShowNewFollowersMessage ? "ON" : "OFF"));
+            showNewFollowersMessage.eventClick += showNewFollowersMessage_eventClick;
+            UIButton showSubscriberMessages = AddNewButton("Show New Subscriber Messages: " + (Configuration.ConfigurationSettings.ShowSubscriberMessages ? "ON" : "OFF"));
+            showSubscriberMessages.eventClick += showSubscriberMessages_eventClick;
+            UIButton showDefaultChirperMessages = AddNewButton("Show Default Chirper Messages: " + (Configuration.ConfigurationSettings.ShowDefaultChirperMessages ? "ON" : "OFF"));
+            showDefaultChirperMessages.eventClick += showDefaultChirperMessages_eventClick;
+
+            UIButton resetLogin = AddNewButton("Reset Login To Default");
+            resetLogin.eventClick += resetLoginButton_eventClick;
 
             UIButton saveButton = AddNewButton("Save");
             saveButton.eventClick += saveButton_eventClick;
 
-            //delayBetweenChirperMessagesText.isPasswordField = true;
-            /*/// <summary>
-        /// Default 9
-        /// </summary>
-        public int DelayBetweenChirperMessages { get; set; }
-
-        /// <summary>
-        /// Default true. If someone does @YourName, they will get chat priority
-        /// </summary>
-        public bool PrioritizePersonallyAddressedMessages { get; set; }
-
-        public string NewSubscriberMessage { get; set; }
-        public string RepeatSubscriberMessage { get; set; }
-        public string SeniorSubscriberMessage { get; set; }
-        public bool ShowSubscriberMessages { get; set; }
-
-        public int MaximumGeneralChatMessageQueue { get; set; }
-        public int MaximumSubscriberChatMessageQueue { get; set; }
-        public int MaximumModeratorChatMessageQueue { get; set; }
-
-        public bool RenameCitizensToLoggedInUsers { get; set; }
-        public bool RenameCitizensToFollowers { get; set; }
-
-        public bool ShowGeneralChatMessages { get; set; }
-        public bool ShowSubscriberChatMessages { get; set; }
-        public bool ShowModeratorChatMessages { get; set; }
-
-        public string NewFollowersMessage { get; set; }
-        public bool ShowNewFollowersMessage { get; set; }
-
-        public bool ShowDefaultChirperMessages { get; set; }
-        public int MaximumMessageSize { get; set; }*/
-            
-
-            // Defaults to ON if ChirpFilter is active.
-            /*
-            if (SuperChirper.HasFilters)
-                filterButton.text = "Filters: ON";
-             */
-
-            //muteButton.eventClick += MuteButtonClick;
-            //filterButton.eventClick += FilterButtonClick;
-            //hashTagsButton.eventClick += HashTagsButtonClick;
-
-            //SuperChirperMod.MuteButtonInstance = muteButton;
-            //SuperChirperMod.FilterButtonInstance = filterButton;
-            //SuperChirperMod.HashTagsButtonInstance = hashTagsButton;
-
             // Default to hidden
             this.Hide();
-
-            //DebugOutputPanel.AddMessage(PluginManager.MessageType.Message, "[SuperChirper] ConfigPanel built.");
-
-            
         }
 
-        private void oauthKeyTextField_eventTextChanged(UIComponent component, string value)
+        #region Generic Button Clicks
+        void showDefaultChirperMessages_eventClick(UIComponent component, UIMouseEventParameter eventParam)
         {
-            if (!string.IsNullOrEmpty(value))
+            if (component is UIButton)
             {
-                if (Configuration.ConfigurationSettings.OAuthKey != value)
-                    _ircSettingsChanged = true;
-
-                // Someone's going to do it, you know it
-                if (!value.Contains("oauth:"))
-                    Configuration.ConfigurationSettings.OAuthKey = "oauth:" + value;
-                else
-                    Configuration.ConfigurationSettings.OAuthKey = value;
+                Configuration.ConfigurationSettings.ShowDefaultChirperMessages = !Configuration.ConfigurationSettings.ShowDefaultChirperMessages;
+                (component as UIButton).text = "Show Default Chirper Messages: " + (Configuration.ConfigurationSettings.ShowDefaultChirperMessages ? "ON" : "OFF");
             }
         }
 
-        private void channelTextFieldTextField_eventTextChanged(UIComponent component, string value)
+        void showSubscriberMessages_eventClick(UIComponent component, UIMouseEventParameter eventParam)
         {
-            if (!string.IsNullOrEmpty(value))
+            if (component is UIButton)
             {
-                if (Configuration.ConfigurationSettings.IrcChannel != value)
-                    _ircSettingsChanged = true;
-
-                Configuration.ConfigurationSettings.IrcChannel = value;
-                
+                Configuration.ConfigurationSettings.ShowSubscriberMessages = !Configuration.ConfigurationSettings.ShowSubscriberMessages;
+                (component as UIButton).text = "Show New Subscriber Messages: " + (Configuration.ConfigurationSettings.ShowSubscriberMessages ? "ON" : "OFF");
             }
         }
 
-        void twitchUserNameTextField_eventTextChanged(UIComponent component, string value)
+        void showNewFollowersMessage_eventClick(UIComponent component, UIMouseEventParameter eventParam)
         {
-            if (!string.IsNullOrEmpty(value))
+            if (component is UIButton)
             {
-                if (Configuration.ConfigurationSettings.UserName != value)
-                    _ircSettingsChanged = true;
-
-                Configuration.ConfigurationSettings.UserName = value;
+                Configuration.ConfigurationSettings.ShowNewFollowersMessage = !Configuration.ConfigurationSettings.ShowNewFollowersMessage;
+                (component as UIButton).text = "Show New Followers Messages: " + (Configuration.ConfigurationSettings.ShowNewFollowersMessage ? "ON" : "OFF");
             }
         }
 
+        void showModeratorChatMessages_eventClick(UIComponent component, UIMouseEventParameter eventParam)
+        {
+            if (component is UIButton)
+            {
+                Configuration.ConfigurationSettings.ShowModeratorChatMessages = !Configuration.ConfigurationSettings.ShowModeratorChatMessages;
+                (component as UIButton).text = "Show Moderator Chat Messages: " + (Configuration.ConfigurationSettings.ShowModeratorChatMessages ? "ON" : "OFF");
+            }
+        }
+
+        void showSubscriberChatMessages_eventClick(UIComponent component, UIMouseEventParameter eventParam)
+        {
+            if (component is UIButton)
+            {
+                Configuration.ConfigurationSettings.ShowSubscriberChatMessages = !Configuration.ConfigurationSettings.ShowSubscriberChatMessages;
+                (component as UIButton).text = "Show Subscriber Chat Messages: " + (Configuration.ConfigurationSettings.ShowSubscriberChatMessages ? "ON" : "OFF");
+            }
+        }
+
+        void showGeneralChatMessages_eventClick(UIComponent component, UIMouseEventParameter eventParam)
+        {
+            if (component is UIButton)
+            {
+                Configuration.ConfigurationSettings.ShowGeneralChatMessages = !Configuration.ConfigurationSettings.ShowGeneralChatMessages;
+                (component as UIButton).text = "Show General Chat Messages: " + (Configuration.ConfigurationSettings.ShowGeneralChatMessages ? "ON" : "OFF");
+            }
+        }
+        #endregion
+
+        /// <summary>
+        /// Reset the login information to chirpertestclient. This is just in case someone edits the oauth key without meaning to
+        /// </summary>
+        /// <param name="component"></param>
+        /// <param name="eventParam"></param>
+        private void resetLoginButton_eventClick(UIComponent component, UIMouseEventParameter eventParam)
+        {
+            Configuration.ResetLoginCredentialsToDefault();
+
+            _twitchUserNameTextField.text = Configuration.ConfigurationSettings.UserName;
+            _oauthKeyTextField.text = Configuration.ConfigurationSettings.OAuthKey;
+
+            saveButton_eventClick(null, null);
+        }
+
+        /// <summary>
+        /// Save the config file changes
+        /// </summary>
+        /// <param name="component"></param>
+        /// <param name="eventParam"></param>
         void saveButton_eventClick(UIComponent component, UIMouseEventParameter eventParam)
         {
-            Configuration.SaveConfigFile();
-
             try
             {
-                //if (_ircSettingsChanged)
-                //{
-                    //_ircSettingsChanged = false;
-                    ChirperExtension.IrcClient.Reconnect(Configuration.ConfigurationSettings.UserName, Configuration.ConfigurationSettings.OAuthKey, Configuration.ConfigurationSettings.IrcChannel);
-                //}
+                Configuration.SaveConfigFile();
+
+                ChirperExtension.IrcClient.Reconnect(Configuration.ConfigurationSettings.UserName, Configuration.ConfigurationSettings.OAuthKey, Configuration.ConfigurationSettings.IrcChannel);
             }
             catch (Exception ex)
             {
@@ -202,6 +206,13 @@ namespace TwitchChirperChat.UI
             return newLabel;
         }
 
+        /// <summary>
+        /// Copied mostly from http://www.skylinesmodding.com/t/uitextinput/120
+        /// </summary>
+        /// <param name="defaultText"></param>
+        /// <param name="isNumericalOnly"></param>
+        /// <param name="isPasswordField"></param>
+        /// <returns></returns>
         private UITextField AddNewTextField(string defaultText, bool isNumericalOnly = false, bool isPasswordField = false)
         {
             var newTextField = this.AddUIComponent<UITextField>();
@@ -230,7 +241,8 @@ namespace TwitchChirperChat.UI
             return newTextField;
         }
 
-        #region "Button installation"
+        
+        #region Button installation 
         private UIButton AddNewButton(string buttonText)
         {
             UIButton newButton = this.AddUIComponent<UIButton>();
@@ -238,7 +250,11 @@ namespace TwitchChirperChat.UI
 
             return newButton;
         }
-
+        /// <summary>
+        /// Copied from https://github.com/AtheMathmo/SuperChirperMod
+        /// </summary>
+        /// <param name="button"></param>
+        /// <param name="buttonText"></param>
         private void SetDefaultButton(UIButton button, string buttonText)
         {
             button.text = buttonText;

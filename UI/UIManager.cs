@@ -14,7 +14,7 @@ namespace TwitchChirperChat.UI
     public class UIManager : LoadingExtensionBase
     {
         private static ChirpPanel chirpPane;
-        //private MessageManager messageManager;
+
         private GameObject optionsPanelObject;
 
         private static AudioClip messageSound = null;
@@ -31,7 +31,6 @@ namespace TwitchChirperChat.UI
             }
         }
 
-        // For development
         private void DestroyPanel()
         {
             if (optionsPanelObject != null)
@@ -44,24 +43,20 @@ namespace TwitchChirperChat.UI
         public static UIButton OptionsButtonInstance { get; set; }
         public static UIButton ClearButtonInstance { get; set; }
 
+        /// <summary>
+        /// Initialize the options menu and Option + Clear buttons
+        /// </summary>
+        /// <param name="mode"></param>
         public override void OnLevelLoaded(LoadMode mode)
         {
             chirpPane = GameObject.Find("ChirperPanel").GetComponent<ChirpPanel>();
 
             // For development
-            DestroyPanel();
+            //DestroyPanel();
 
             if (chirpPane == null) return;
 
             messageSound = chirpPane.m_NotificationSound;
-
-            #region "NewGame"
-            // Give intro message (only shows up on new level)
-            //ChirpMessage introMessage = new ChirpMessage("SuperChirpy", "Welcome to Super Chirpy! Press Alt+C to toggle Chirpy, press Clear to delete all chirps, and options to access other features.", 12345);
-            // Get rid of default message
-            //chirpPane.ClearMessages();
-            //chirpPane.AddMessage(introMessage);
-            #endregion
 
             GameObject clearButtonObject = new GameObject("SuperChirperClearButton", typeof(UIButton));
             GameObject optionsButtonObject = new GameObject("SuperChirperOptionsButton", typeof(UIButton));
@@ -78,7 +73,7 @@ namespace TwitchChirperChat.UI
 
             if (optionsPanel == null)
             {
-                DebugOutputPanel.AddMessage(PluginManager.MessageType.Message, "[SuperChirper] No ConfigPanel component found.");
+                DebugOutputPanel.AddMessage(PluginManager.MessageType.Message, "[TwitchChirperChat] No ConfigPanel component found.");
             }
 
             UIView.GetAView().AttachUIComponent(optionsPanelObject);
@@ -129,9 +124,7 @@ namespace TwitchChirperChat.UI
             optionsButton.eventClick += OptionsButtonClick;
 
             ClearButtonInstance = clearButton;
-
             OptionsButtonInstance = optionsButton;
-
             OptionsPanelInstance = optionsPanel;
         }
 
@@ -139,9 +132,8 @@ namespace TwitchChirperChat.UI
         {
             if (eventParam.buttons == UIMouseButton.Left && ChirpPanel.instance != null)
             {
-                // Clear all messages in Chirpy and hide the window
+                // Clear all messages in Chirpy
                 chirpPane.ClearMessages();
-                //chirpPane.Collapse();
             }
         }
 

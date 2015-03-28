@@ -85,7 +85,7 @@ namespace TwitchChirperChat
                     throw new NullReferenceException("The DocumentElement is null for the XML document! This shouldn't be possible");
 
                 // Add the comments
-                var userComment = doc.CreateComment("Your username in all lowercase letters goes here. NO SPACES BEFORE OR AFTER");
+                var userComment = doc.CreateComment("Your username in all lowercase letters goes here");
                 doc.DocumentElement.InsertBefore(userComment, FindNode(doc.DocumentElement.ChildNodes, "UserName"));
 
                 var oAuthKeyComment = doc.CreateComment(@"Generate your oauth key and make sure to include the oauth:! https://api.twitch.tv/kraken/oauth2/authorize?response_type=token&client_id=6590rp99k45b8cdaxwa6wa8vhm1ve7e&redirect_uri=http://twitchapps.com/tmi/&scope=chat_login+channel_check_subscription+channel_subscriptions");
@@ -158,6 +158,16 @@ namespace TwitchChirperChat
             {
                 Log.AddEntry(ex);
             }
+        }
+
+        /// <summary>
+        /// There's no other way for people to get the oauth, so here's a function to do it for them
+        /// </summary>
+        internal static void ResetLoginCredentialsToDefault()
+        {
+            Configuration.ConfigurationSettings.UserName = "chirpertestclient";
+            Configuration.ConfigurationSettings.OAuthKey = "oauth:eqtt3b1vl3dxmthyyzo9l5f2clyj5s";
+            Configuration.SaveConfigFile();
         }
 
         /// <summary>

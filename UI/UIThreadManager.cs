@@ -9,6 +9,11 @@ namespace TwitchChirperChat.UI
     // ReSharper disable once InconsistentNaming
     public class UIThreadManager : ThreadingExtensionBase
     {
+        /// <summary>
+        /// Options display handling. Depending on the state of the Chirper window is what is/isn't visible
+        /// </summary>
+        /// <param name="realTimeDelta"></param>
+        /// <param name="simulationTimeDelta"></param>
         public override void OnUpdate(float realTimeDelta, float simulationTimeDelta)
         {
             try
@@ -18,14 +23,15 @@ namespace TwitchChirperChat.UI
                     if (UIManager.ClearButtonInstance.isVisible && !ChirpPanel.instance.isShowing)
                     {
                         UIManager.ClearButtonInstance.Hide();
-                        UIManager.OptionsButtonInstance.Hide();
-                        UIManager.OptionsPanelInstance.Hide();
+                        if (UIManager.OptionsButtonInstance != null)
+                            UIManager.OptionsButtonInstance.Hide();
+                        if (UIManager.OptionsPanelInstance != null)
+                            UIManager.OptionsPanelInstance.Hide();
                     }
                     else if (!UIManager.ClearButtonInstance.isVisible && ChirpPanel.instance.isShowing)
                     {
                         UIManager.ClearButtonInstance.Show();
                         UIManager.OptionsButtonInstance.Show();
-
                     }
                 }
             }
