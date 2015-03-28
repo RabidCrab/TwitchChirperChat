@@ -176,12 +176,31 @@ namespace TwitchChirperChat.UI
         {
             try
             {
+                Configuration.ConfigurationSettings.UserName = _twitchUserNameTextField.text;
+                Configuration.ConfigurationSettings.OAuthKey = _oauthKeyTextField.text;
+                Configuration.ConfigurationSettings.IrcChannel = _channelTextField.text;
+
+                int parsed;
+                if (int.TryParse(_delayBetweenChirperMessagesTextField.text, out parsed))
+                {
+                    if (Configuration.ConfigurationSettings.DelayBetweenChirperMessages != parsed)
+                    {
+                        Configuration.ConfigurationSettings.DelayBetweenChirperMessages = parsed;
+
+                        ChirperExtension.ChangeTimerDelay(parsed);
+                    }
+                        
+                }
+                    
+
                 Configuration.SaveConfigFile();
 
-                ChirperExtension.IrcClient.Reconnect(Configuration.ConfigurationSettings.UserName, Configuration.ConfigurationSettings.OAuthKey, Configuration.ConfigurationSettings.IrcChannel);
+                if (ChirperExtension.IrcClient != null)
+                    ChirperExtension.IrcClient.Reconnect(Configuration.ConfigurationSettings.UserName, Configuration.ConfigurationSettings.OAuthKey, Configuration.ConfigurationSettings.IrcChannel);
             }
             catch (Exception ex)
             {
+                DebugOutputPanel.AddMessage(PluginManager.MessageType.Message, ex.Source + " " + ex.TargetSite);
                 Log.AddEntry(ex);
             }
 

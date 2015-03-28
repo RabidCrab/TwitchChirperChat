@@ -6,6 +6,7 @@ using System.Linq;
 using System.Net.Sockets;
 using System.Text.RegularExpressions;
 using System.Threading;
+using ColossalFramework.Plugins;
 using TwitchChirperChat.TwitchIrc;
 
 namespace TwitchChirperChat.Twitch.TwitchIrc
@@ -130,26 +131,66 @@ namespace TwitchChirperChat.Twitch.TwitchIrc
         /// Reconnect to Twitch Irc and begin reading/writing to the Irc
         /// </summary>
         /// <param name="userName">The Twitch username. This is case sensitive! If you don't know the proper casing, do all lowercase!</param>
-        /// <param name="password">The password always starts with oauth. If you do not have an oauth token, go to http://twitchapps.com/tmi/ and make one</param>
+        /// <param name="oAuthToken">The password always starts with oauth. If you do not have an oauth token, go to http://twitchapps.com/tmi/ and make one</param>
         /// <param name="channel">The channel you want to connect to. For example, if you want to watch TheOddOne's channel, you'd pass #theoddone</param>
-        public void Reconnect(string userName, string password, string channel)
+        public void Reconnect(string userName, string oAuthToken, string channel)
         {
+            // If there's no login change, then let's just change channels
+            if (userName == UserName && oAuthToken == _oauthToken)
+            {
+                // That is if they even changed channels
+                if (channel.ToLowerInvariant() == _channel)
+                    return;
+
+                DebugOutputPanel.AddMessage(PluginManager.MessageType.Message, String.Format("Channels are different, swapping from {0} to {1}", _channel, channel));
+
+                _outputWriter.Write(
+                    "PART " + "#" + _channel + "\r\n"
+                );
+                _outputWriter.Flush();
+                _outputWriter.Write(
+                    "JOIN " + "#" + channel + "\r\n"
+                );
+                _outputWriter.Flush();
+
+                _channel = channel.ToLowerInvariant();
+
+                return;
+            }
+
+            // Ugh, we actually need to reconnect with new stuff
             _shouldStop = true;
+
+            try
+            {
+                _workerThread.Join();
+            }
+            catch { }
 
             // For the userName I didn't automatically move it to all lowercase because some people want their names cased properly. The problem is that this
             // will likely be a sticking point for people. I'll make sure to litter the documentation with this caveat
             UserName = userName;
-            _oauthToken = password;
+            _oauthToken = oAuthToken;
             _channel = channel.ToLowerInvariant();
 
-            _workerThread.Join();
-            _shouldStop = false;
-            _tcpClient = new TcpClient();
-            Subscribers = new Dictionary<string, TwitchUser>();
-            Moderators = new Dictionary<string, TwitchUser>();
-            LoggedInUsers = new Dictionary<string, TwitchUser>();
-            _workerThread = new Thread(this.DoWork);
-            _workerThread.Start();
+            try
+            {
+                _shouldStop = false;
+                _inputReader = null;
+                _outputWriter = null;
+                _tcpClient = new TcpClient();
+                Subscribers = new Dictionary<string, TwitchUser>();
+                Moderators = new Dictionary<string, TwitchUser>();
+                LoggedInUsers = new Dictionary<string, TwitchUser>();
+                _workerThread = new Thread(this.DoWork);
+                _workerThread.Start();
+            }
+            catch (Exception ex)
+            {
+                Log.AddEntry(ex);
+                DebugOutputPanel.AddMessage(PluginManager.MessageType.Message, "Failed in reassignment");
+            }
+            
         }
 
         /// <summary>
@@ -217,7 +258,7 @@ namespace TwitchChirperChat.Twitch.TwitchIrc
                     _outputWriter.Flush();
                 }
                 // If the quit attempt fails, it's not really an issue, just get rid of the Tcp stream next, we'll time out on Irc soon enough
-                catch (Exception) {/* ignored */}
+                catch {/* ignored */}
 
                 try
                 {
@@ -227,13 +268,15 @@ namespace TwitchChirperChat.Twitch.TwitchIrc
                     _outputWriter.Dispose();
                 }
                 // Anything that goes wrong will be fixed when the application completely dies in a few seconds anyways
-                catch (Exception) {/* ignored */}
+                catch {/* ignored */}
             }
             catch (Exception ex)
             {
                 // Anything that happens outside of the expected scope is going to get logged and the rest of the program will be notified
                 // it disconnected with an exception
                 Log.AddEntry(ex);
+
+                DebugOutputPanel.AddMessage(PluginManager.MessageType.Message, "Failed in worker DoWork");
 
                 if (Disconnected != null) Disconnected(this, new DisconnectedEventArgs("Exception: " + ex.Message));
             }
@@ -275,13 +318,16 @@ namespace TwitchChirperChat.Twitch.TwitchIrc
                     );
                     outputWriter.Flush();
                     TwitchUser loginSuccessfulTwitchUser;
+                    lock (LoggedInUsers)
+                    {
                         // The user won't always be here. If someone immediately joins and says "Hey guys!", they probably won't actually be in here.
                         // Twitch queues all the joins and sends them out every 10 seconds, so my program might not have gotten the memo yet
-                    if (!LoggedInUsers.TryGetValue("twitch", out loginSuccessfulTwitchUser))
+                        if (!LoggedInUsers.TryGetValue("twitch", out loginSuccessfulTwitchUser))
                         {
                             loginSuccessfulTwitchUser = new TwitchUser() { UserName = "twitch" };
                             LoggedInUsers.Add(loginSuccessfulTwitchUser.UserName, loginSuccessfulTwitchUser);
                         }
+                    }
 
                     if (ChatMessageReceived != null) ChatMessageReceived(this, new ChatMessageReceivedEventArgs(new IrcMessage(loginSuccessfulTwitchUser, UserName, _channel, "Login successful! Currently logged in as " + UserName + " and listening to " + _channel, true)));
                      
@@ -293,12 +339,15 @@ namespace TwitchChirperChat.Twitch.TwitchIrc
                     if (noticeMessage.Contains("Login unsuccessful"))
                     {
                         TwitchUser targetTwitchUser;
-                        // The user won't always be here. If someone immediately joins and says "Hey guys!", they probably won't actually be in here.
-                        // Twitch queues all the joins and sends them out every 10 seconds, so my program might not have gotten the memo yet
-                        if (!LoggedInUsers.TryGetValue("twitch", out targetTwitchUser))
+                        lock (LoggedInUsers)
                         {
-                            targetTwitchUser = new TwitchUser() { UserName = "twitch" };
-                            LoggedInUsers.Add(targetTwitchUser.UserName, targetTwitchUser);
+                            // The user won't always be here. If someone immediately joins and says "Hey guys!", they probably won't actually be in here.
+                            // Twitch queues all the joins and sends them out every 10 seconds, so my program might not have gotten the memo yet
+                            if (!LoggedInUsers.TryGetValue("twitch", out targetTwitchUser))
+                            {
+                                targetTwitchUser = new TwitchUser() { UserName = "twitch" };
+                                LoggedInUsers.Add(targetTwitchUser.UserName, targetTwitchUser);
+                            }
                         }
 
                         if (ChatMessageReceived != null) ChatMessageReceived(this, new ChatMessageReceivedEventArgs(new IrcMessage(targetTwitchUser, UserName, _channel, "Login failed! Are you sure you have the right username and oauth key?", true)));
@@ -309,13 +358,17 @@ namespace TwitchChirperChat.Twitch.TwitchIrc
                 case "353":
                     if (_channel == "chirpertestclient")
                         break;
-                    // The first one starts out with a : on their name. The easiest way to get rid of it is to manage it first before any
-                    // looping is done
-                    LoggedInUsers.Add(splitText[5].Replace(":", ""), new TwitchUser() { UserName = splitText[5].Replace(":", "") });
-                    for (var i = 6; i < splitText.Count(); i++)
+                    lock (LoggedInUsers)
                     {
-                        if (!LoggedInUsers.ContainsKey(splitText[i]))
-                            LoggedInUsers.Add(splitText[i], new TwitchUser() { UserName = splitText[i] });
+                        // The first one starts out with a : on their name. The easiest way to get rid of it is to manage it first before any
+                        // looping is done
+                        if (!LoggedInUsers.ContainsKey(splitText[5].Replace(":", "")))
+                            LoggedInUsers.Add(splitText[5].Replace(":", ""), new TwitchUser() { UserName = splitText[5].Replace(":", "") });
+                        for (var i = 6; i < splitText.Count(); i++)
+                        {
+                            if (!LoggedInUsers.ContainsKey(splitText[i]))
+                                LoggedInUsers.Add(splitText[i], new TwitchUser() { UserName = splitText[i] });
+                        }
                     }
                     break;
                 // Now for the mods
@@ -324,8 +377,13 @@ namespace TwitchChirperChat.Twitch.TwitchIrc
                         break;
                     // Hey, a moderator
                     if (splitText[3] == "+o")
-                        if (!Moderators.ContainsKey(splitText[4]))
-                            Moderators.Add(splitText[4], new TwitchUser() { UserName = splitText[4] });
+                    {
+                        lock (Moderators)
+                        {
+                            if (!Moderators.ContainsKey(splitText[4]))
+                                Moderators.Add(splitText[4], new TwitchUser() { UserName = splitText[4] });
+                        }
+                    }
                     break;
                 // Hey, someone's joining
                 case "JOIN":
@@ -335,17 +393,25 @@ namespace TwitchChirperChat.Twitch.TwitchIrc
                     // We don't count ourselves because our leave/join event is already obvious to the program. The "353" call above will
                     // have our name in it, so we want to skip it here
                     if (String.Compare(joiningUser, UserName, StringComparison.Ordinal) != 0)
-                        // And make sure the list doesn't already have them, or the program will crash on a duplicate insert attempt
-                        if (!LoggedInUsers.ContainsKey(joiningUser))
-                            LoggedInUsers.Add(joiningUser, new TwitchUser() { UserName = joiningUser });
+                    {
+                        lock (LoggedInUsers)
+                        {
+                            // And make sure the list doesn't already have them, or the program will crash on a duplicate insert attempt
+                            if (!LoggedInUsers.ContainsKey(joiningUser))
+                                LoggedInUsers.Add(joiningUser, new TwitchUser() { UserName = joiningUser });
+                        }
+                    }
                     break;
                 // Ruh roh, we lost someone
                 case "PART":
                     if (_channel == "chirpertestclient")
                         break;
                     var leavingUser = splitText[0].Substring(1, splitText[0].IndexOf("!", StringComparison.Ordinal) - 1);
-                    // If the key doesn't exist no exception is thrown
-                    LoggedInUsers.Remove(leavingUser);
+                    lock (LoggedInUsers)
+                    {
+                        // If the key doesn't exist no exception is thrown
+                        LoggedInUsers.Remove(leavingUser);
+                    }
                     break;
                 // PRIVMSG isn't a private message necessarily. It can be either a channel or a user message.
                 // Currently I only care about channel messages, but I don't filter out personal messages, they just get put
@@ -374,28 +440,30 @@ namespace TwitchChirperChat.Twitch.TwitchIrc
                             if (buffer.Contains("months in a row"))
                                 monthsSubscribed = int.Parse(message.Split(' ')[3]);
 
-                            // It can be either a new subscription or a repeat one. If it's a repeat, we'll just change the month count
-                            if (!Subscribers.ContainsKey(subscriberUserName))
+                            lock (Subscribers)
                             {
-                                newSubscriber = new TwitchUser()
+                                // It can be either a new subscription or a repeat one. If it's a repeat, we'll just change the month count
+                                if (!Subscribers.ContainsKey(subscriberUserName))
                                 {
-                                    UserName = subscriberUserName,
-                                    SubscribeDateTime = DateTime.Now,
-                                    MonthsSubscribed = monthsSubscribed
-                                };
+                                    newSubscriber = new TwitchUser()
+                                    {
+                                        UserName = subscriberUserName,
+                                        SubscribeDateTime = DateTime.Now,
+                                        MonthsSubscribed = monthsSubscribed
+                                    };
 
-                                Subscribers.Add(subscriberUserName, newSubscriber);
-                            }
-                            else
-                            {
-                                // So it's a repeat subscriber. Honestly this shouldn't ever happen, because they'd have to run the game for a whole
-                                // month before this is relevant
-                                if (Subscribers.TryGetValue(subscriberUserName, out newSubscriber))
+                                    Subscribers.Add(subscriberUserName, newSubscriber);
+                                }
+                                else
                                 {
-                                    newSubscriber.MonthsSubscribed = monthsSubscribed;
+                                    // So it's a repeat subscriber. Honestly this shouldn't ever happen, because they'd have to run the game for a whole
+                                    // month before this is relevant
+                                    if (Subscribers.TryGetValue(subscriberUserName, out newSubscriber))
+                                    {
+                                        newSubscriber.MonthsSubscribed = monthsSubscribed;
+                                    }
                                 }
                             }
-
                             if (NewSubscriber != null) NewSubscriber(this, new NewSubscriberEventArgs(newSubscriber));
                         }
                     }
@@ -406,10 +474,13 @@ namespace TwitchChirperChat.Twitch.TwitchIrc
                         TwitchUser targetTwitchUser;
                         // The user won't always be here. If someone immediately joins and says "Hey guys!", they probably won't actually be in here.
                         // Twitch queues all the joins and sends them out every 10 seconds, so my program might not have gotten the memo yet
-                        if (!LoggedInUsers.TryGetValue(userName, out targetTwitchUser))
+                        lock (LoggedInUsers)
                         {
-                            targetTwitchUser = new TwitchUser() { UserName = userName };
-                            LoggedInUsers.Add(targetTwitchUser.UserName, targetTwitchUser);
+                            if (!LoggedInUsers.TryGetValue(userName, out targetTwitchUser))
+                            {
+                                targetTwitchUser = new TwitchUser() { UserName = userName };
+                                LoggedInUsers.Add(targetTwitchUser.UserName, targetTwitchUser);
+                            }
                         }
 
                         IrcMessage ircMessage = new IrcMessage(targetTwitchUser, UserName, _channel, message);

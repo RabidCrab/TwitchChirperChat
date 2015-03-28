@@ -7,8 +7,10 @@ using System.Threading;
 using System.Timers;
 using ColossalFramework;
 using ColossalFramework.Plugins;
+using ColossalFramework.UI;
 using ICities;
-using TwitchChirperChat.TwitchIrc;
+using TwitchChirperChat.Twitch.TwitchApi;
+using TwitchChirperChat.Twitch.TwitchIrc;
 using UnityEngine;
 using Timer = System.Timers.Timer;
 
@@ -19,29 +21,29 @@ namespace TwitchChirperChat
         /// <summary>
         /// The Twitch Irc client instance we use to read/write information to Irc
         /// </summary>
-        private TwitchIrcClient _ircClient = new TwitchIrcClient();
-
-        public TwitchIrcClient AdminClient
-        {
-            get { return _adminClient; }
-        }
-
-        private TwitchIrcClient _adminClient = new TwitchIrcClient();
-
-        private Timer _messageTimer;
-
-        private List<KeyValuePair<MessagePriority, QueuedChirperMessage>> _messageQueue = new List<KeyValuePair<MessagePriority, QueuedChirperMessage>>();
+        internal static TwitchIrcClient IrcClient = new TwitchIrcClient();
 
         /// <summary>
-        /// Both of these are used to manage the deletion of unwanted chirps. The _removalTargetCitizenMessage is the message
-        /// tagged for deletion, and _messageSound is the default sound for chirp notifications. When a chirp comes in and it
-        /// is getting tagged for deletion, we shut off the noise until the target chirp is deleted. The easiest way to do this is
-        /// to set the audio clip to null so the game will not play it. After we delete the chirp, we restore the clip so the game
-        /// can use it again
+        /// The API manages existing subscribers, and new/existing followers
         /// </summary>
-        private volatile CitizenMessage _removalTargetCitizenMessage = null;
+        private TwitchApiManager _apiManager;
 
+        /// <summary>
+        /// The message timer
+        /// </summary>
+        private static Timer _messageTimer;
+
+        /// <summary>
+        /// List of messages to pass
+        /// </summary>
+        private static List<KeyValuePair<MessagePriority, QueuedChirperMessage>> _messageQueue = new List<KeyValuePair<MessagePriority, QueuedChirperMessage>>();
+
+        /// <summary>
+        /// Used for deletion of default messages
+        /// </summary>
         private AudioClip _messageSound = null;
+        private static MessageManager _messageManager;
+        private CitizenMessage _messageRemovalTarget = null;
 
         /// <summary>
         /// We don't want to queue up a crapton of messages while the game is paused and stuff like that
@@ -56,7 +58,19 @@ namespace TwitchChirperChat
         /// </summary>
         public override void OnCreated(IChirper c)
         {
+            _messageManager = GameObject.Find("MessageManager").GetComponent<MessageManager>();
             Configuration.ReloadConfigFile();
+
+            if (IrcClient == null)
+                IrcClient = new TwitchIrcClient();
+
+            // The noise will drive people bonkers
+            ChirpPanel cp = ChirpPanel.instance;
+            if (cp != null)
+                cp.m_NotificationSound = null;
+
+            // If they're using the default username, make them aware of the options tab
+            AddMessage("chirpertestclient", "Welcome to Twitch Chirper Chat! Click the Options button above to do some simple setup to get started!", true);
 
             DebugOutputPanel.AddMessage(PluginManager.MessageType.Message,
                 "User Name: " + Configuration.ConfigurationSettings.UserName);
@@ -64,48 +78,65 @@ namespace TwitchChirperChat
                 "Channel: " + Configuration.ConfigurationSettings.IrcChannel);
             DebugOutputPanel.AddMessage(PluginManager.MessageType.Message, "Connecting to Irc...");
 
-            // Hook up the Irc client events and execute a connection
-            _ircClient.ChatMessageReceived += _ircClient_ChatMessageReceived;
-            _ircClient.Disconnected += _ircClient_Disconnected;
-            _ircClient.Connected += _ircClient_Connected;
-            _ircClient.NewSubscriber += _ircClient_NewSubscriber;
-            _ircClient.Connect(Configuration.ConfigurationSettings.UserName, Configuration.ConfigurationSettings.OAuthKey, Configuration.ConfigurationSettings.IrcChannel);
+            try
+            {
+                if (_apiManager != null)
+                    _apiManager.Dispose();
+            }
+            // ReSharper disable once EmptyGeneralCatchClause
+            catch {}
 
-            // Any exceptions are going to get posted to this Irc. It won't help me with Irc issues, but I'll be dealing with that soon
-            _adminClient.ChatMessageReceived += _ircClient_ChatMessageReceived;
-            _adminClient.Connect("chirpertestclient", "oauth:eqtt3b1vl3dxmthyyzo9l5f2clyj5s", "chirpertestclient");
+            _apiManager = new TwitchApiManager(Configuration.ConfigurationSettings.IrcChannel);
+            _apiManager.NewFollowers += _apiManager_NewFollowers;
+            _apiManager.StartWatching();
+
+            // Hook up the Irc client events and execute a connection
+            IrcClient.ChatMessageReceived += _ircClient_ChatMessageReceived;
+            IrcClient.Disconnected += _ircClient_Disconnected;
+            IrcClient.Connected += _ircClient_Connected;
+            IrcClient.NewSubscriber += _ircClient_NewSubscriber;
+            IrcClient.Connect(Configuration.ConfigurationSettings.UserName, Configuration.ConfigurationSettings.OAuthKey, Configuration.ConfigurationSettings.IrcChannel);
 
             if (_messageTimer != null)
             {
                 // If the timer isn't null we're going to attempt to stop it then set it to null
                 // ReSharper disable once EmptyGeneralCatchClause
-                try
-                {
-                    _messageTimer.Close();
-                }
-                catch
-                {
-                }
+                try { _messageTimer.Close(); } catch { }
 
                 _messageTimer = null;
             }
-
-            // Temporary. Posting exceptions via Irc isn't the best of ideas, but it's all I have for now
-            Log.SetIrcClient(AdminClient);
 
             _messageTimer = new Timer(Configuration.ConfigurationSettings.DelayBetweenChirperMessages) {AutoReset = true};
             _messageTimer.Elapsed += _messageTimer_Elapsed;
             _messageTimer.Start();
 
             // Try and get the message sound we use. Not absolutely necessary
-            try
+            /*try
             {
                 _messageSound = Singleton<ChirpPanel>.instance.m_NotificationSound;
             }
             catch (Exception ex)
             {
                 Log.AddEntry(ex);
+            }*/
+        }
+
+        public static void ChangeTimerDelay(int delay)
+        {
+            if (_messageTimer != null)
+            {
+                _messageTimer.Elapsed -= _messageTimer_Elapsed;
+                // If the timer isn't null we're going to attempt to stop it then set it to null
+                // ReSharper disable once EmptyGeneralCatchClause
+                try { _messageTimer.Close(); }
+                catch { }
+
+                _messageTimer = null;
             }
+
+            _messageTimer = new Timer(delay) { AutoReset = true };
+            _messageTimer.Elapsed += _messageTimer_Elapsed;
+            _messageTimer.Start();
         }
 
         void _ircClient_Connected(object source, ConnectedEventArgs e)
@@ -116,24 +147,58 @@ namespace TwitchChirperChat
         /// <summary>
         /// On timer we're going to check the message queue and post one of the messages
         /// </summary>
-        private void _messageTimer_Elapsed(object sender, ElapsedEventArgs e)
+        private static void _messageTimer_Elapsed(object sender, ElapsedEventArgs e)
         {
             if (IsPaused)
                 return;
+
             try
             {
-                // Order it by priority, then by message date
-                var messagePair = _messageQueue.OrderBy(x => x.Key).ThenBy(x => x.Value.QueueTime).FirstOrDefault();
+                SetPrivateVariable<bool>(MessageManager.instance, "m_canShowMessage", true);
+
+                if (_messageQueue.Count == 0)
+                    return;
+
+                // First order by priority. Then by @Name mentions UNLESS they've disabled it, then by send date 
+                KeyValuePair<MessagePriority, QueuedChirperMessage> messagePair = _messageQueue.OrderBy(x => x.Key).ThenByDescending(x => x.Value.IsIrcUserMentioned || !Configuration.ConfigurationSettings.PrioritizePersonallyAddressedMessages).ThenBy(x => x.Value.QueueTime).FirstOrDefault();
 
                 if (messagePair.Equals(default(KeyValuePair<MessagePriority, QueuedChirperMessage>))) return;
+
+                // This is where we check for filters. If the person doesn't want to see certain messages, cut them off here
+                if (!Configuration.ConfigurationSettings.ShowGeneralChatMessages && messagePair.Key == MessagePriority.GeneralChat)
+                {
+                    _messageQueue.Remove(messagePair);
+                    if (_messageQueue.Count > 0)
+                        _messageTimer_Elapsed(null, null);
+                    return;
+                }
+                if (!Configuration.ConfigurationSettings.ShowSubscriberChatMessages && messagePair.Key == MessagePriority.Subscriber)
+                {
+                    _messageQueue.Remove(messagePair);
+                    if (_messageQueue.Count > 0)
+                        _messageTimer_Elapsed(null, null);
+                    return;
+                }
+                if (!Configuration.ConfigurationSettings.ShowModeratorChatMessages && messagePair.Key == MessagePriority.Moderator)
+                {
+                    _messageQueue.Remove(messagePair);
+                    if (_messageQueue.Count > 0)
+                        _messageTimer_Elapsed(null, null);
+                    return;
+                }
 
                 // If it doesn't have a CitizenId, get one
                 if (!messagePair.Value.IsCitizenIdSet)
                     messagePair.Value.CitizenId = LookupCitizenId(messagePair.Value.CitizenName);
 
                 if (messagePair.Value.CitizenId != 0u)
+                {
+                    // We don't need to stinkin' countdown timer. I want to use my own, but I'm going to leave the delta timer alone
+                    // just in case someone wants to post their own messages and expect a reasonable timer countdown
+                    SetPrivateVariable<bool>(MessageManager.instance, "m_canShowMessage", true);
                     MessageManager.instance.QueueMessage(new Message(messagePair.Value.CitizenName,
                         messagePair.Value.Message, "", messagePair.Value.CitizenId));
+                }
 
                 _messageQueue.Remove(messagePair);
 
@@ -158,14 +223,11 @@ namespace TwitchChirperChat
         void _ircClient_Disconnected(object source, DisconnectedEventArgs e)
         {
             // If it failed from an exception, clean everything up and notify the user the mod is shutting down
-            if (e.ClosedException != null)
+            if (e.Message != null)
             {
-                DebugOutputPanel.AddMessage(PluginManager.MessageType.Message, "Error! Client was disconnected from Irc");
+                DebugOutputPanel.AddMessage(PluginManager.MessageType.Message, "Error! Client was disconnected from Irc for some reason!");
 
-                lock (_removalTargetCitizenMessage)
-                    _removalTargetCitizenMessage = null;
-
-                OnReleased();
+                //OnReleased();
             }
         }
 
@@ -200,6 +262,20 @@ namespace TwitchChirperChat
             }
         }
 
+        void _apiManager_NewFollowers(object source, NewFollowersEventArgs e)
+        {
+            if (!Configuration.ConfigurationSettings.ShowNewFollowersMessage)
+                return;
+            
+            //DebugOutputPanel.AddMessage(PluginManager.MessageType. Message,Configuration.ConfigurationSettings.IrcChannel + " - " + String.Format(Configuration.ConfigurationSettings.NewFollowersMessage, String.Join(", ", e.Users.Select(x => x.UserName).ToArray())));
+
+            AddMessage(Configuration.ConfigurationSettings.IrcChannel,
+                String.Format(Configuration.ConfigurationSettings.NewFollowersMessage, String.Join(", ", e.Users.Select(x => x.UserName).ToArray())),
+                true,
+                true,
+                false);
+        }
+
         /// <summary>
         /// Executed on each chat message received and parsed by the Irc client
         /// </summary>
@@ -207,13 +283,23 @@ namespace TwitchChirperChat
         /// <param name="e"></param>
         void _ircClient_ChatMessageReceived(object source, ChatMessageReceivedEventArgs e)
         {
-            AddMessage(e.Message.User.UserName, e.Message.Message, false);
+            // I put up general errors and whatnot in Chirper since my mod specifically modifies it
+            if (e.Message.IsUserFeedback)
+            {
+                SetPrivateVariable<bool>(MessageManager.instance, "m_canShowMessage", true);
+                MessageManager.instance.QueueMessage(new Message(e.Message.User.UserName,
+                    e.Message.Message, "", LookupCitizenId(e.Message.User.UserName)));
+            }
+            else
+            {
+                AddMessage(e.Message.User.UserName, e.Message.Message, false, e.Message.IsIrcUserMentioned);
+            }
         }
 
         /// <summary>
         /// Add a message to chirper queue
         /// </summary>
-        private void AddMessage(QueuedChirperMessage message, bool isCritical = false, bool isNewSubscriber = false)
+        private void AddMessage(QueuedChirperMessage message, bool isCritical = false, bool isNewSubscriber = false, bool isIrcUserMentioned = false)
         {
             var priority = MessagePriority.GeneralChat;
             var username = message.CitizenName.ToLowerInvariant();
@@ -233,16 +319,16 @@ namespace TwitchChirperChat
             }
             else if (isCritical)
                 priority = MessagePriority.Critical;
-            else if (username == _ircClient.UserName.ToLowerInvariant())
+            else if (username == IrcClient.UserName.ToLowerInvariant())
             {
                 priority = MessagePriority.ModUser;
                 isCritical = true;
             }
             else if (isNewSubscriber)
                 priority = MessagePriority.NewSubscriber;
-            else if (_ircClient.Moderators.ContainsKey(username))
+            else if (IrcClient.Moderators.ContainsKey(username))
                 priority = MessagePriority.Moderator;
-            else if (_ircClient.Subscribers.ContainsKey(username))
+            else if (IrcClient.Subscribers.ContainsKey(username))
                 priority = MessagePriority.Subscriber;
 
             if (IsPaused && !isCritical)
@@ -253,9 +339,9 @@ namespace TwitchChirperChat
         }
 
         /// <summary>
-        /// Add a message to chirper
+        /// Add a message to chirper. It's obsolete to use, but I'll need to do some serious refactoring to make it more reasonable
         /// </summary>
-        private void AddMessage(string citizenName, string text, bool isCritical = false, bool isNewSubscriber = false)
+        private void AddMessage(string citizenName, string text, bool isCritical = false, bool isNewSubscriber = false, bool isIrcUserMentioned = false)
         {
             if (IsPaused && !isCritical)
                 return;
@@ -264,7 +350,7 @@ namespace TwitchChirperChat
                 text = text.Substring(0, Configuration.ConfigurationSettings.MaximumMessageSize);
 
             // The citizen ID will not be pulled until the message makes it through the queue
-            AddMessage(new QueuedChirperMessage(citizenName, text), isCritical, isNewSubscriber);
+            AddMessage(new QueuedChirperMessage(citizenName, text, isIrcUserMentioned), isCritical, isNewSubscriber, isIrcUserMentioned);
         }
 
         /// <summary>
@@ -280,16 +366,16 @@ namespace TwitchChirperChat
                     cp.m_NotificationSound = _messageSound;
 
                 // Make sure the Irc client is really gone so it releases the Irc port
-                if (_adminClient != null)
-                    _adminClient.Dispose();
+                //if (_adminClient != null)
+                //    _adminClient.Dispose();
 
-                _adminClient = null;
+                //_adminClient = null;
 
                 // Make sure the Irc client is really gone so it releases the Irc port
-                if (_ircClient != null)
-                    _ircClient.Dispose();
+                if (IrcClient != null)
+                    IrcClient.Dispose();
 
-                _ircClient = null;
+                IrcClient = null;
             }
             catch (Exception ex)
             {
@@ -308,16 +394,21 @@ namespace TwitchChirperChat
         }
 
         /// <summary>
-        /// OnUpdate is called on the primary thread. When I need to work on non-interface stuff, such as diving down and manually removing
-        /// a Chirp, I do it on the OnUpdate call to make sure I have ownership of the main thread. That guarantees I won't step on any toes
-        /// while modifying game objects. Mostly copied from https://github.com/mabako/reddit-for-city-skylines/
+        /// OnNewMessage runs before the message can be found in the stack. So we try to get
+        /// rid of it here Mostly copied from https://github.com/mabako/reddit-for-city-skylines/
         /// </summary>
-        /*public override void OnUpdate()
+        public override void OnUpdate()
         {
-            // If there's no message to remove, continue on
-            if (_removalTargetCitizenMessage == null)
-                return;
+            // Detect keypress
+            if (Event.current.alt && Input.GetKeyDown(KeyCode.C))
+            {
+                // Toggle options
 
+            }
+
+            // If there's no message to remove, continue on
+            if (_messageRemovalTarget == null)
+                return;
 
             // This code is roughly based on the work by Juuso "Zuppi" Hietala.
             // Get the Chirper container, where all of the chirps reside
@@ -326,7 +417,7 @@ namespace TwitchChirperChat
             {
                 // Keep looping until we get the one we want. It should pretty much be the very first one we snag every time, on very rare
                 // occurence the second one
-                if (!container.GetChild(i).GetComponentInChildren<UILabel>().text.Equals(_removalTargetCitizenMessage.GetText()))
+                if (!container.GetChild(i).GetComponentInChildren<UILabel>().text.Equals(_messageRemovalTarget.GetText()))
                     continue;
 
                 // Reset the notification sound back to normal
@@ -334,61 +425,29 @@ namespace TwitchChirperChat
 
                 // Remove the message
                 UITemplateManager.RemoveInstance("ChirpTemplate", container.GetChild(i).GetComponent<UIPanel>());
-                MessageManager.instance.DeleteMessage(_removalTargetCitizenMessage);
+                MessageManager.instance.DeleteMessage(_messageRemovalTarget);
 
-                // I'm actually not sure what this does. I don't even have a good guess and my Google-fu failed me
-                ChirpPanel.instance.Collapse();
+                // Collapses the Chirper panel back
+                //ChirpPanel.instance.Collapse();
+
+                // We're done here
+                _messageRemovalTarget = null;
 
                 break;
             }
-
-            // We're done here
-            _removalTargetCitizenMessage = null;
-        }*/
+        }
 
         /// <summary>
         /// On a new message event we check and see if the message is one we want to keep or delete. Mostly copied from https://github.com/mabako/reddit-for-city-skylines/
         /// </summary>
-        /*public override void OnNewMessage(IChirperMessage message)
+        public override void OnNewMessage(IChirperMessage message)
         {
             // If the message should be filtered, target it for removal
             var citizenMessage = message as CitizenMessage;
             if (citizenMessage == null) return;
-            if (!ShouldFilter(citizenMessage.m_messageID)) return;
 
-            // No twitch users can have a space in their name. This will work for now
-            if (!message.senderName.Contains(' ')) return;
-
-            // Make sure the user doesn't get an empty notification call because we're getting rid of this message.
-            // This needs to be done on the update thread though, so we toss it into a variable for later processing
-            //ChirpPanel.instance.m_NotificationSound = null;
-
-            // Make sure it's not already getting worked on. Very, very unlikely but possible. It's fine to wait since
-            // we're not on a primary thread
-            lock (_removalTargetCitizenMessage)
-            {
-                _removalTargetCitizenMessage = citizenMessage;
-            }
-        }*/
-
-        /// <summary>
-        /// Decides what should be filtered out. Eventually I'm going to filter out all of the non-Twitch chirps. For now I'm still debugging stuff
-        /// </summary>
-        /// <param name="message">The text content of the chirp</param>
-        /// <returns>true if the message should be removed</returns>
-        private static bool ShouldFilter(string message)
-        {
-            // If the parse throws a null exception, it didn't find it in the enum
-            try
-            {
-                var unused = Enum.Parse(typeof (LocaleID), message);
-
-                return true;
-            }
-            catch (ArgumentNullException)
-            {
-                return false;
-            }
+            if (!Configuration.ConfigurationSettings.ShowDefaultChirperMessages)
+                _messageRemovalTarget = citizenMessage;
         }
 
         /// <summary>
@@ -397,7 +456,7 @@ namespace TwitchChirperChat
         /// </summary>
         /// <param name="name">The name of the Citizen to return</param>
         /// <returns>A citizen with the name to create a Chirper method from</returns>
-        private uint LookupCitizenId(string name)
+        private static uint LookupCitizenId(string name)
         {
             if (string.IsNullOrEmpty(name)) return 0;
 
@@ -474,7 +533,7 @@ namespace TwitchChirperChat
         /// <param name="obj"></param>
         /// <param name="fieldName"></param>
         /// <returns></returns>
-        protected virtual T GetPrivateVariable<T>(object obj, string fieldName)
+        protected static T GetPrivateVariable<T>(object obj, string fieldName)
         {
             var fieldInfo = obj.GetType().GetField(fieldName, BindingFlags.NonPublic | BindingFlags.Instance);
 
@@ -482,6 +541,20 @@ namespace TwitchChirperChat
                 return (T)fieldInfo.GetValue(obj);
             else
                 throw new ArgumentNullException("(" + fieldName + ") is null!");
+        }
+
+        /// <summary>
+        /// Resolve private assembly fields. Copied from https://github.com/mabako/reddit-for-city-skylines/
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="obj"></param>
+        /// <param name="fieldName"></param>
+        /// <returns></returns>
+        protected static void SetPrivateVariable<T>(object obj, string fieldName, T val)
+        {
+            var fieldInfo = obj.GetType().GetField(fieldName, BindingFlags.NonPublic | BindingFlags.Instance);
+
+            fieldInfo.SetValue(obj, val);
         }
     }
 
