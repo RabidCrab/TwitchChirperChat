@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace TwitchChirperChat.Twitch.TwitchIrc
+namespace Twitch.TwitchIrc
 {
     public class ConnectionFailedException : Exception
     {

@@ -1,7 +1,6 @@
 ﻿using System.Text.RegularExpressions;
-using TwitchChirperChat.TwitchIrc;
 
-namespace TwitchChirperChat.Twitch.TwitchIrc
+namespace Twitch.TwitchIrc
 {
     /// <summary>
     /// Contains all paramaters for a Twitch Irc message

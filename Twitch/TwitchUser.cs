@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace TwitchChirperChat.TwitchIrc
+namespace Twitch
 {
     /// <summary>
     /// A generic Twitch User with no interal data parsing or logic beyond the object matching overrides

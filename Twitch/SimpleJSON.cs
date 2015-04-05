@@ -54,24 +54,25 @@ using System;
 using System.CodeDom.Compiler;
 using System.Collections;
 using System.Collections.Generic;
-#if !SIMPLE_JSON_NO_LINQ_EXPRESSION
-using System.Linq.Expressions;
-#endif
 using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
-#if SIMPLE_JSON_DYNAMIC
-using System.Dynamic;
-#endif
 using System.Globalization;
 using System.Reflection;
 using System.Runtime.Serialization;
 using System.Text;
-using TwitchChirperChat.SimpleJson.TwitchChirperChat.Reflection;
+using Twitch.SimpleJson.Reflection;
+
+#if !SIMPLE_JSON_NO_LINQ_EXPRESSION
+using System.Linq.Expressions;
+#endif
+#if SIMPLE_JSON_DYNAMIC
+using System.Dynamic;
+#endif
 
 // ReSharper disable LoopCanBeConvertedToQuery
 // ReSharper disable RedundantExplicitArrayCreation
 // ReSharper disable SuggestUseVarKeywordEvident
-namespace TwitchChirperChat.SimpleJson
+namespace Twitch.SimpleJson
 {
     /// <summary>
     /// Represents the json array.
@@ -484,7 +485,7 @@ namespace TwitchChirperChat.SimpleJson
     }
 }
 
-namespace TwitchChirperChat.SimpleJson
+namespace Twitch.SimpleJson
 {
     /// <summary>
     /// This class encodes and decodes JSON strings.
@@ -1593,7 +1594,7 @@ namespace TwitchChirperChat.SimpleJson
 
 #endif
 
-    namespace TwitchChirperChat.Reflection
+    namespace Reflection
     {
         // This class is meant to be copied into other libraries. So we want to exclude it from Code Analysis rules
         // that might be in place in the target project.
@@ -1713,7 +1714,7 @@ namespace TwitchChirperChat.SimpleJson
                 if (typeof(IDictionary<,>).GetTypeInfo().IsAssignableFrom(type.GetTypeInfo()))
                     return true;
 #else
-                if (typeof(System.Collections.IDictionary).IsAssignableFrom(type))
+                if (typeof(IDictionary).IsAssignableFrom(type))
                     return true;
 #endif
                 if (!GetTypeInfo(type).IsGenericType)
@@ -2113,7 +2114,7 @@ namespace TwitchChirperChat.SimpleJson
                     return _dictionary.GetEnumerator();
                 }
 
-                System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
+                IEnumerator IEnumerable.GetEnumerator()
                 {
                     return _dictionary.GetEnumerator();
                 }

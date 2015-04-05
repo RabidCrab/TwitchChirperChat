@@ -1,16 +1,15 @@
 ﻿using System;
 using ColossalFramework.Plugins;
-using TwitchChirperChat.Twitch.TwitchIrc;
-using TwitchChirperChat.TwitchIrc;
+using Twitch;
 
 namespace TwitchChirperChat
 {
     /// <summary>
     /// All of the logging logic for the program
     /// </summary>
-    public static class Log
+    public class Log : ILog
     {
-        public static void AddEntry(Exception ex)
+        public void AddEntry(Exception ex)
         {
             DebugOutputPanel.AddMessage(PluginManager.MessageType.Message, ex.GetType() + " - " + ex.Message + " - " + ex.TargetSite + " - " + ex.StackTrace);
 

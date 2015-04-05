@@ -156,7 +156,7 @@ namespace TwitchChirperChat
             }
             catch (Exception ex)
             {
-                Log.AddEntry(ex);
+                ChirperExtension.Logger.AddEntry(ex);
             }
         }
 
@@ -165,9 +165,9 @@ namespace TwitchChirperChat
         /// </summary>
         internal static void ResetLoginCredentialsToDefault()
         {
-            Configuration.ConfigurationSettings.UserName = "chirpertestclient";
-            Configuration.ConfigurationSettings.OAuthKey = "oauth:eqtt3b1vl3dxmthyyzo9l5f2clyj5s";
-            Configuration.SaveConfigFile();
+            ConfigurationSettings.UserName = "chirpertestclient";
+            ConfigurationSettings.OAuthKey = "oauth:eqtt3b1vl3dxmthyyzo9l5f2clyj5s";
+            SaveConfigFile();
         }
 
         /// <summary>
@@ -205,7 +205,7 @@ namespace TwitchChirperChat
             }
             catch (Exception ex)
             {
-                Log.AddEntry(ex);
+                ChirperExtension.Logger.AddEntry(ex);
             }
 
             return null;

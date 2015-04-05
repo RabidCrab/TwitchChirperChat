@@ -6,10 +6,9 @@ using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
 using System.Timers;
 using ColossalFramework.Plugins;
-using TwitchChirperChat.SimpleJson;
-using TwitchChirperChat.TwitchIrc;
+using Twitch.SimpleJson;
 
-namespace TwitchChirperChat.Twitch.TwitchApi
+namespace Twitch.TwitchApi
 {
     public class TwitchApiManager : IDisposable
     {
@@ -19,6 +18,9 @@ namespace TwitchChirperChat.Twitch.TwitchApi
         public string Channel { get; private set; }
 
         private readonly List<TwitchUser> _followers = new List<TwitchUser>();
+
+        public ILog Logger { get; set; }
+
         /// <summary>
         /// List of current stream followers
         /// </summary>
@@ -32,8 +34,9 @@ namespace TwitchChirperChat.Twitch.TwitchApi
         /// </summary>
         public event NewFollowersHandler NewFollowers;
 
-        public TwitchApiManager(string channel)
+        public TwitchApiManager(ILog logger, string channel)
         {
+            Logger = logger;
             Channel = channel;
 
             _callTimer = new Timer(120000) { AutoReset = true };
@@ -101,7 +104,7 @@ namespace TwitchChirperChat.Twitch.TwitchApi
             }
             catch (Exception ex)
             {
-                Log.AddEntry(ex);
+                Logger.AddEntry(ex);
             }
         }
 

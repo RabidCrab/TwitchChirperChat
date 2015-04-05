@@ -62,10 +62,12 @@
     <Compile Include="Configuration.cs" />
     <Compile Include="ConfigurationFile.cs" />
     <Compile Include="ModInfo.cs" />
+    <Compile Include="Twitch\ILog.cs" />
+    <Compile Include="UI\TwitchChirpPanel.cs" />
     <Compile Include="UI\UIThreadManager.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="QueuedChirperMessage.cs" />
-    <Compile Include="SimpleJSON.cs" />
+    <Compile Include="Twitch\SimpleJSON.cs" />
     <Compile Include="UI\UIManager.cs" />
     <Compile Include="Twitch\TwitchApi\TwitchApiManager.cs" />
     <Compile Include="Twitch\TwitchIrc\ConnectionFailedException.cs" />
@@ -81,7 +83,8 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>copy /y "$(TargetPath)" "X:\Installed\Games\Steam\SteamApps\workshop\content\255710\414730498\$(ProjectName).dll"</PostBuildEvent>
+    <PostBuildEvent>del "X:\Installed\Games\Steam\SteamApps\workshop\content\255710\414730498\$(ProjectName).dll"
+copy /y "$(TargetPath)" "X:\Installed\Games\Steam\SteamApps\workshop\content\255710\414730498\$(ProjectName).dll"</PostBuildEvent>
   </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.

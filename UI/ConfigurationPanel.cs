@@ -1,8 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net.Sockets;
-using System.Text;
 using ColossalFramework.Plugins;
 using ColossalFramework.UI;
 using UnityEngine;
@@ -11,7 +7,7 @@ namespace TwitchChirperChat.UI
 {
     public class ConfigurationPanel : UIPanel
     {
-        private ChirpPanel _chirpPanel;
+        //private ChirpPanel _chirpPanel;
 
         private UITextField _twitchUserNameTextField;
         private UITextField _oauthKeyTextField;
@@ -24,9 +20,9 @@ namespace TwitchChirperChat.UI
         /// </summary>
         public override void Start()
         {
-            _chirpPanel = GameObject.Find("ChirperPanel").GetComponent<ChirpPanel>();
+            //_chirpPanel = GameObject.Find("ChirperPanel").GetComponent<ChirpPanel>();
 
-            if (_chirpPanel == null) return;
+            //if (_chirpPanel == null) return;
 
             // Set visuals for panel
             this.backgroundSprite = "ChirperBubble";
@@ -45,7 +41,7 @@ namespace TwitchChirperChat.UI
             UIDragHandle dragHandle = this.AddUIComponent<UIDragHandle>();
             // Add title to drag handle
             UILabel titleLabel = dragHandle.AddUIComponent<UILabel>();
-            titleLabel.text = "Options";
+            titleLabel.text = "Twitch Chirper Options";
             titleLabel.textScale = 1.5f;
             titleLabel.textColor = new Color32(36, 202, 255, 255);
             titleLabel.textAlignment = UIHorizontalAlignment.Center;
@@ -201,7 +197,7 @@ namespace TwitchChirperChat.UI
             catch (Exception ex)
             {
                 DebugOutputPanel.AddMessage(PluginManager.MessageType.Message, ex.Source + " " + ex.TargetSite);
-                Log.AddEntry(ex);
+                ChirperExtension.Logger.AddEntry(ex);
             }
 
             this.Hide();

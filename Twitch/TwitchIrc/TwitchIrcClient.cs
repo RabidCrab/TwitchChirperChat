@@ -7,9 +7,8 @@ using System.Net.Sockets;
 using System.Text.RegularExpressions;
 using System.Threading;
 using ColossalFramework.Plugins;
-using TwitchChirperChat.TwitchIrc;
 
-namespace TwitchChirperChat.Twitch.TwitchIrc
+namespace Twitch.TwitchIrc
 {
     /// <summary>
     /// Client for Twitch Irc to communicate with Twitch chat
@@ -28,6 +27,8 @@ namespace TwitchChirperChat.Twitch.TwitchIrc
         private TcpClient _tcpClient = new TcpClient();
         private TextReader _inputReader;
         private TextWriter _outputWriter;
+
+        public ILog Logger { get; set; }
 
         public bool IsConnected
         {
@@ -55,7 +56,7 @@ namespace TwitchChirperChat.Twitch.TwitchIrc
         public event NewSubscriberHandler NewSubscriber;
 
         /// <summary>
-        /// Triggers when there's a new subscriber. This includes re-subscriptions
+        /// Triggers when there's a successful connection
         /// </summary>
         public event ConnectedHandler Connected;
 
@@ -86,8 +87,11 @@ namespace TwitchChirperChat.Twitch.TwitchIrc
         /// The starting position for the Twitch Irc client. After instantiation, hook onto the events you want
         /// and call the Connect method
         /// </summary>
-        public TwitchIrcClient()
+        /// <param name="logger">The logger used to record exceptions</param>
+        public TwitchIrcClient(ILog logger)
         {
+            Logger = logger;
+
             _workerThread = new Thread(this.DoWork);
             Subscribers = new Dictionary<string, TwitchUser>();
             Moderators = new Dictionary<string, TwitchUser>();
@@ -115,7 +119,7 @@ namespace TwitchChirperChat.Twitch.TwitchIrc
         /// </summary>
         /// <param name="userName">The Twitch username. This is case sensitive! If you don't know the proper casing, do all lowercase!</param>
         /// <param name="password">The password always starts with oauth. If you do not have an oauth token, go to http://twitchapps.com/tmi/ and make one</param>
-        /// <param name="channel">The channel you want to connect to. For example, if you want to watch TheOddOne's channel, you'd pass #theoddone</param>
+        /// <param name="channel">The channel you want to connect to. For example, if you want to watch TheOddOne's channel, you'd pass theoddone, no #</param>
         public void Connect(string userName, string password, string channel)
         {
             // For the userName I didn't automatically move it to all lowercase because some people want their names cased properly. The problem is that this
@@ -132,7 +136,7 @@ namespace TwitchChirperChat.Twitch.TwitchIrc
         /// </summary>
         /// <param name="userName">The Twitch username. This is case sensitive! If you don't know the proper casing, do all lowercase!</param>
         /// <param name="oAuthToken">The password always starts with oauth. If you do not have an oauth token, go to http://twitchapps.com/tmi/ and make one</param>
-        /// <param name="channel">The channel you want to connect to. For example, if you want to watch TheOddOne's channel, you'd pass #theoddone</param>
+        /// <param name="channel">The channel you want to connect to. For example, if you want to watch TheOddOne's channel, you'd pass theoddone, no #</param>
         public void Reconnect(string userName, string oAuthToken, string channel)
         {
             // If there's no login change, then let's just change channels
@@ -187,7 +191,7 @@ namespace TwitchChirperChat.Twitch.TwitchIrc
             }
             catch (Exception ex)
             {
-                Log.AddEntry(ex);
+                Logger.AddEntry(ex);
                 DebugOutputPanel.AddMessage(PluginManager.MessageType.Message, "Failed in reassignment");
             }
             
@@ -274,7 +278,7 @@ namespace TwitchChirperChat.Twitch.TwitchIrc
             {
                 // Anything that happens outside of the expected scope is going to get logged and the rest of the program will be notified
                 // it disconnected with an exception
-                Log.AddEntry(ex);
+                Logger.AddEntry(ex);
 
                 DebugOutputPanel.AddMessage(PluginManager.MessageType.Message, "Failed in worker DoWork");
 
