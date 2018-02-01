@@ -5,7 +5,6 @@ using UnityEngine;
 
 namespace TwitchChirperChat.UI
 {
-    // ReSharper disable once InconsistentNaming
     public class UIThreadManager : ThreadingExtensionBase
     {
         private bool _isShowing = false;
@@ -13,8 +12,8 @@ namespace TwitchChirperChat.UI
         /// <summary>
         /// Options display handling. Depending on the state of the Chirper window is what is/isn't visible
         /// </summary>
-        /// <param name="realTimeDelta"></param>
-        /// <param name="simulationTimeDelta"></param>
+        /// <param name="realTimeDelta">I'm guessing it's the delta of real-life time, generally just called the delta time</param>
+        /// <param name="simulationTimeDelta">I'm guessing this is why realTimeDelta has realTime added to it. Must be the delta of the in-game simulation time so that it's possible to fast-forward the game without fast-forwarding the UI stuff</param>
         public override void OnUpdate(float realTimeDelta, float simulationTimeDelta)
         {
             if (Input.GetKey(KeyCode.LeftAlt) && Input.GetKeyDown(KeyCode.C))

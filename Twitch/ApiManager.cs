@@ -5,36 +5,30 @@ using System.Net;
 using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
 using System.Timers;
-using ColossalFramework.Plugins;
 using Twitch.SimpleJson;
 
-namespace Twitch.TwitchApi
+namespace Twitch
 {
-    public class TwitchApiManager : IDisposable
+    public class ApiManager : IApiManager, IDisposable
     {
         private readonly Timer _callTimer;
         private volatile bool _isFirstCall = true;
 
         public string Channel { get; private set; }
 
-        private readonly List<TwitchUser> _followers = new List<TwitchUser>();
-
         public ILog Logger { get; set; }
 
         /// <summary>
         /// List of current stream followers
         /// </summary>
-        public List<TwitchUser> Followers
-        {
-            get { return _followers; }
-        }
+        public List<User> Followers { get; private set; } = new List<User>();
 
         /// <summary>
         /// Triggers when there's new followers
         /// </summary>
         public event NewFollowersHandler NewFollowers;
 
-        public TwitchApiManager(ILog logger, string channel)
+        public ApiManager(ILog logger, string channel)
         {
             Logger = logger;
             Channel = channel;
@@ -45,9 +39,9 @@ namespace Twitch.TwitchApi
 
         /// <summary>
         /// I wasted 2 hours on this. Twitch uses https. Debugging in visual studio used windows certs. Debugging in the game used an
-        /// empty list of certs. This just bypasses the check and allows the communication. Not really all that safe
+        /// empty list of certs. This just bypasses the check and allows the communication because security on a receive only connection that's tied to a trivial mod is unnecessary
         /// </summary>
-        public static bool Validator(object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors)
+        public bool Validator(object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors)
         {
             return true;
         }
@@ -55,11 +49,9 @@ namespace Twitch.TwitchApi
         /// <summary>
         /// Call the server and get the first 25 followers. After that we call every once in a while to watch for new ones
         /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
         private void _callTimer_Elapsed(object sender, ElapsedEventArgs e)
         {
-            // This isn't necessary for the program to keep running. If it fails catch the error and just keep going
+            // This isn't necessary for the program to keep running. If it fails, catch the error and just keep going
             try
             {
                 string followers = GetFollowers(@"https://api.twitch.tv/kraken/channels/" + Channel + @"/follows?limit=10");
@@ -67,7 +59,7 @@ namespace Twitch.TwitchApi
                 JsonObject root = (JsonObject)SimpleJson.SimpleJson.DeserializeObject(followers);
                 JsonArray follows = (JsonArray)root["follows"];
 
-                List<TwitchUser> newFollowers = new List<TwitchUser>();
+                List<User> newFollowers = new List<User>();
 
                 // Add all the followers, and record the new ones in newFollowers to be passed through the event
                 foreach (object obj in follows)
@@ -78,7 +70,7 @@ namespace Twitch.TwitchApi
                     DateTime followDateTime;
                     if (DateTime.TryParse(follow["created_at"].ToString(), out followDateTime))
                     {
-                        var newFollower = new TwitchUser()
+                        var newFollower = new User()
                         {
                             UserName = user["display_name"].ToString(),
                             FollowedDateTime = followDateTime,
@@ -92,13 +84,12 @@ namespace Twitch.TwitchApi
                     }
                     else
                     {
-                        DebugOutputPanel.AddMessage(PluginManager.MessageType.Message, "Can't parse " + follow["created_at"].ToString() + " to a DateTime");
+                        //DebugOutputPanel.AddMessage(PluginManager.MessageType.Message, "Can't parse " + follow["created_at"].ToString() + " to a DateTime");
                     }
                 }
 
                 if (newFollowers.Count > 0 && !_isFirstCall)
-                    if (NewFollowers != null) 
-                        NewFollowers(this, new NewFollowersEventArgs(newFollowers));
+                    NewFollowers?.Invoke(this, new NewFollowersEventArgs(newFollowers));
 
                 _isFirstCall = false;
             }
@@ -111,7 +102,6 @@ namespace Twitch.TwitchApi
         /// <summary>
         /// Get the string result of followers
         /// </summary>
-        /// <param name="url"></param>
         /// <returns>string of followers, ready to be parsed</returns>
         private string GetFollowers(string url)
         {
@@ -141,6 +131,15 @@ namespace Twitch.TwitchApi
             _callTimer_Elapsed(null, null);
         }
 
+        public void StopWatching()
+        {
+            try
+            {
+                _callTimer.Stop();
+            }
+            catch { }
+        }
+
         public void Dispose()
         {
             try
@@ -157,9 +156,9 @@ namespace Twitch.TwitchApi
 
     public class NewFollowersEventArgs : EventArgs
     {
-        public List<TwitchUser> Users { get; private set; }
+        public List<User> Users { get; private set; }
 
-        public NewFollowersEventArgs(List<TwitchUser> users)
+        public NewFollowersEventArgs(List<User> users)
         {
             Users = users;
         }

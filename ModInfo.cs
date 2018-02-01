@@ -32,7 +32,7 @@ namespace TwitchChirperChat
 
                 if (citizenId != 0u)
                 {
-                    // We don't need to stinkin' countdown timer. I want to use my own, but I'm going to leave the delta timer alone
+                    // I want to use my own, but I'm going to leave the delta timer alone
                     // just in case someone wants to post their own messages and expect a reasonable timer countdown
                     //ChirperExtension.SetPrivateVariable<bool>(MessageManager.instance, "m_canShowMessage", true);
                     

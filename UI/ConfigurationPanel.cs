@@ -27,8 +27,8 @@ namespace TwitchChirperChat.UI
             // Set visuals for panel
             this.backgroundSprite = "ChirperBubble";
             this.color = new Color32(122, 132, 138, 255);
-            this.width = 550;
-            this.height = 650;
+            this.width = 600;
+            this.height = 620;
             this.transformPosition = new Vector3(-1.6f, 0.9f);
 
             // Allow automated layout
@@ -58,7 +58,7 @@ namespace TwitchChirperChat.UI
             oauthKeyTextField.maxLength = 200;
             _oauthKeyTextField = oauthKeyTextField;
 
-            AddNewLabel("Chat Channel. If you want to watch http://www.twitch.tv/cleavetv, \nyou would input 'cleavetv' here: ");
+            AddNewLabel("Chat Channel. If you want to watch http://www.twitch.tv/lirik, \nyou would input 'lirik' here: ");
             UITextField channelTextField =
                 AddNewTextField(Configuration.ConfigurationSettings.IrcChannel);
             _channelTextField = channelTextField;
@@ -85,7 +85,7 @@ namespace TwitchChirperChat.UI
             UIButton resetLogin = AddNewButton("Reset Login To Default");
             resetLogin.eventClick += resetLoginButton_eventClick;
 
-            UIButton saveButton = AddNewButton("Save");
+            UIButton saveButton = AddNewButton("Save and Close");
             saveButton.eventClick += saveButton_eventClick;
 
             // Default to hidden
@@ -183,7 +183,7 @@ namespace TwitchChirperChat.UI
                     {
                         Configuration.ConfigurationSettings.DelayBetweenChirperMessages = parsed;
 
-                        ChirperExtension.ChangeTimerDelay(parsed);
+                        ChirperExtension.GetChirperManager.ChangeTimerDelay(parsed);
                     }
                         
                 }

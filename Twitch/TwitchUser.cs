@@ -5,14 +5,14 @@ namespace Twitch
     /// <summary>
     /// A generic Twitch User with no interal data parsing or logic beyond the object matching overrides
     /// </summary>
-    public class TwitchUser
+    public class User
     {
         public string UserName { get; set; }
         public DateTime? SubscribeDateTime { get; set; }
         public int MonthsSubscribed { get; set; }
         public DateTime? FollowedDateTime { get; set; }
 
-        public TwitchUser()
+        public User()
         {
             MonthsSubscribed = 1;
         }
@@ -20,10 +20,10 @@ namespace Twitch
         /// <returns>true if UserName is equal</returns>
         public override bool Equals(object obj)
         {
-            if (!(obj is TwitchUser))
+            if (!(obj is User))
                 return false;
 
-            return this.UserName.Equals(((TwitchUser)obj).UserName);
+            return this.UserName.Equals(((User)obj).UserName);
         }
 
         /// <returns>Hashcode of UserName, which should always be unique</returns>

@@ -1,13 +1,9 @@
-﻿using System;
-using ColossalFramework;
-using ColossalFramework.Plugins;
-using ColossalFramework.UI;
+﻿using ColossalFramework.UI;
 using ICities;
 using UnityEngine;
 
 namespace TwitchChirperChat.UI
 {
-    // ReSharper disable once InconsistentNaming
     public class UIManager : LoadingExtensionBase
     {
         private static ChirpPanel _chirpPanel;
@@ -72,7 +68,7 @@ namespace TwitchChirperChat.UI
                 // Set the button dimensions. 
                 clearButton.width = 50;
                 clearButton.height = 20;
-                optionsButton.width = 60;
+                optionsButton.width = 65;
                 optionsButton.height = 20;
 
                 // Style the buttons to make them look like a menu button.
@@ -103,8 +99,8 @@ namespace TwitchChirperChat.UI
                 optionsButton.playAudioEvents = true;
 
                 // Place the button.
-                clearButton.transformPosition = new Vector3(-1.22f, 0.9999f);
-                optionsButton.transformPosition = new Vector3(-1.37f, 0.9999f);
+                clearButton.transformPosition = new Vector3(-1.42f, 0.9999f);
+                optionsButton.transformPosition = new Vector3(-1.60f, 0.9999f);
 
                 // Respond to button click.
                 clearButton.eventClick += ClearButtonClick;

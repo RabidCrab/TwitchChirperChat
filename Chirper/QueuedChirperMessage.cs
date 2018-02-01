@@ -7,7 +7,7 @@ namespace TwitchChirperChat
     /// the time it was added to the queue and the citizenId. I don't want to have to get the citizen's Id
     /// if I don't send the message, so I use this until I actually want to send the message
     /// </summary>
-    public class QueuedChirperMessage
+    public class TwitchIrcMessage
     {
         private uint _citizenId = 0u;
         public uint CitizenId
@@ -25,7 +25,7 @@ namespace TwitchChirperChat
         public DateTime QueueTime { get; private set; }
         public bool IsIrcUserMentioned { get; private set; }
 
-        public QueuedChirperMessage(string citizenName, string message, bool isIrcUserMentioned = false)
+        public TwitchIrcMessage(string citizenName, string message, bool isIrcUserMentioned = false)
         {
             IsCitizenIdSet = false;
             CitizenName = citizenName;
@@ -34,7 +34,7 @@ namespace TwitchChirperChat
             IsIrcUserMentioned = isIrcUserMentioned;
         }
 
-        public QueuedChirperMessage(string citizenName, string message, uint citizenId, bool isIrcUserMentioned = false)
+        public TwitchIrcMessage(string citizenName, string message, uint citizenId, bool isIrcUserMentioned = false)
         {
             _citizenId = citizenId;
             IsCitizenIdSet = true;

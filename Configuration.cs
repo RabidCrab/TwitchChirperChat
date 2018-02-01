@@ -66,9 +66,6 @@ namespace TwitchChirperChat
         /// <summary>
         /// When I serialize the document, I want to add some comments to help people who manually modify the parameters
         /// </summary>
-        /// <param name="filename"></param>
-        /// <param name="config"></param>
-        [SuppressMessage("ReSharper", "PossibleNullReferenceException")]
         private static void Serialize(string filename, ConfigurationFile config)
         {
             try
@@ -222,7 +219,7 @@ namespace TwitchChirperChat
             {
                 UserName = "chirpertestclient",
                 OAuthKey = "oauth:eqtt3b1vl3dxmthyyzo9l5f2clyj5s",
-                IrcChannel = "cleavetv",
+                IrcChannel = "lirik",
                 DelayBetweenChirperMessages = 8000,
                 MaximumGeneralChatMessageQueue = 20,
                 MaximumSubscriberChatMessageQueue = 10,
@@ -230,7 +227,7 @@ namespace TwitchChirperChat
                 PrioritizePersonallyAddressedMessages = true,
                 NewSubscriberMessage = "Hey everyone, I just subscribed! #Newbie #WelcomeToTheParty",
                 RepeatSubscriberMessage = "I've just subscribed for {0} months in a row! #BestSupporterEver",
-                SeniorSubscriberMessage = "I've been supporting the stream for {0} months in a row! #SeniorDiscount #GetOnMyLevel",
+                SeniorSubscriberMessage = "I've been supporting the stream for {0} months in a row! #SeniorDiscount",
                 ShowSubscriberMessages = true,
                 RenameCitizensToLoggedInUsers = true,
                 RenameCitizensToFollowers = true,

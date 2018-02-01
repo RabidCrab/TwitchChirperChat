@@ -1,9 +1,9 @@
 ﻿using ColossalFramework.IO;
 
-namespace TwitchChirperChat
+namespace TwitchChirperChat.Chirper
 {
     /// <summary>
-    /// A chirp that will eventually show up on Chirper. Copied the serialization logic from https://github.com/mabako/reddit-for-city-skylines/
+    /// A chirp that will eventually show up on Chirper. Used only to interface with the API. Mod uses <see cref="TwitchIrcMessage"/> for internal message handling. Copied the serialization logic from https://github.com/mabako/reddit-for-city-skylines/
     /// </summary>
     public class Message : MessageBase
     {
@@ -30,7 +30,7 @@ namespace TwitchChirperChat
         }
 
         /// <summary>
-        /// Hashtag all of the icon keywords
+        /// Hashtag icon keywords
         /// </summary>
         private void HashtagKeywords()
         {

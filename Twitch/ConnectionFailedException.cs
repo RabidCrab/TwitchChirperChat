@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Twitch.TwitchIrc
+namespace Twitch
 {
     public class ConnectionFailedException : Exception
     {

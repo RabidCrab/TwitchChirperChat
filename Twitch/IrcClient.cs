@@ -6,14 +6,13 @@ using System.Linq;
 using System.Net.Sockets;
 using System.Text.RegularExpressions;
 using System.Threading;
-using ColossalFramework.Plugins;
 
-namespace Twitch.TwitchIrc
+namespace Twitch
 {
     /// <summary>
     /// Client for Twitch Irc to communicate with Twitch chat
     /// </summary>
-    public class TwitchIrcClient : IDisposable
+    public class IrcClient : IIrcClient, IDisposable
     {
         private Thread _workerThread;
 
@@ -70,17 +69,17 @@ namespace Twitch.TwitchIrc
         /// <summary>
         /// A list of all the subscribers in the channel. The key is the username, the TwitchUser is not necessarily unique
         /// </summary>
-        public Dictionary<string, TwitchUser> Subscribers { get; private set; }
+        public Dictionary<string, User> Subscribers { get; private set; }
 
         /// <summary>
         /// A list of all the moderators in the channel. The key is the username, the TwitchUser is not necessarily unique
         /// </summary>
-        public Dictionary<string, TwitchUser> Moderators { get; private set; }
+        public Dictionary<string, User> Moderators { get; private set; }
 
         /// <summary>
         /// A list of all the users in the channel. This includes Moderators and Subscribers. The key is the username, the TwitchUser is not necessarily unique
         /// </summary>
-        public Dictionary<string, TwitchUser> LoggedInUsers { get; private set; }
+        public Dictionary<string, User> LoggedInUsers { get; private set; }
         #endregion
 
         /// <summary>
@@ -88,14 +87,14 @@ namespace Twitch.TwitchIrc
         /// and call the Connect method
         /// </summary>
         /// <param name="logger">The logger used to record exceptions</param>
-        public TwitchIrcClient(ILog logger)
+        public IrcClient(ILog logger)
         {
             Logger = logger;
 
             _workerThread = new Thread(this.DoWork);
-            Subscribers = new Dictionary<string, TwitchUser>();
-            Moderators = new Dictionary<string, TwitchUser>();
-            LoggedInUsers = new Dictionary<string, TwitchUser>();
+            Subscribers = new Dictionary<string, User>();
+            Moderators = new Dictionary<string, User>();
+            LoggedInUsers = new Dictionary<string, User>();
         }
 
         /// <summary>
@@ -146,8 +145,6 @@ namespace Twitch.TwitchIrc
                 if (channel.ToLowerInvariant() == _channel)
                     return;
 
-                DebugOutputPanel.AddMessage(PluginManager.MessageType.Message, String.Format("Channels are different, swapping from {0} to {1}", _channel, channel));
-
                 _outputWriter.Write(
                     "PART " + "#" + _channel + "\r\n"
                 );
@@ -183,16 +180,15 @@ namespace Twitch.TwitchIrc
                 _inputReader = null;
                 _outputWriter = null;
                 _tcpClient = new TcpClient();
-                Subscribers = new Dictionary<string, TwitchUser>();
-                Moderators = new Dictionary<string, TwitchUser>();
-                LoggedInUsers = new Dictionary<string, TwitchUser>();
+                Subscribers = new Dictionary<string, User>();
+                Moderators = new Dictionary<string, User>();
+                LoggedInUsers = new Dictionary<string, User>();
                 _workerThread = new Thread(this.DoWork);
                 _workerThread.Start();
             }
             catch (Exception ex)
             {
                 Logger.AddEntry(ex);
-                DebugOutputPanel.AddMessage(PluginManager.MessageType.Message, "Failed in reassignment");
             }
             
         }
@@ -280,8 +276,6 @@ namespace Twitch.TwitchIrc
                 // it disconnected with an exception
                 Logger.AddEntry(ex);
 
-                DebugOutputPanel.AddMessage(PluginManager.MessageType.Message, "Failed in worker DoWork");
-
                 if (Disconnected != null) Disconnected(this, new DisconnectedEventArgs("Exception: " + ex.Message));
             }
 
@@ -321,14 +315,14 @@ namespace Twitch.TwitchIrc
                         "JOIN " + "#" + _channel + "\r\n"
                     );
                     outputWriter.Flush();
-                    TwitchUser loginSuccessfulTwitchUser;
+                    User loginSuccessfulTwitchUser;
                     lock (LoggedInUsers)
                     {
                         // The user won't always be here. If someone immediately joins and says "Hey guys!", they probably won't actually be in here.
                         // Twitch queues all the joins and sends them out every 10 seconds, so my program might not have gotten the memo yet
                         if (!LoggedInUsers.TryGetValue("twitch", out loginSuccessfulTwitchUser))
                         {
-                            loginSuccessfulTwitchUser = new TwitchUser() { UserName = "twitch" };
+                            loginSuccessfulTwitchUser = new User() { UserName = "twitch" };
                             LoggedInUsers.Add(loginSuccessfulTwitchUser.UserName, loginSuccessfulTwitchUser);
                         }
                     }
@@ -342,14 +336,14 @@ namespace Twitch.TwitchIrc
 
                     if (noticeMessage.Contains("Login unsuccessful"))
                     {
-                        TwitchUser targetTwitchUser;
+                        User targetTwitchUser;
                         lock (LoggedInUsers)
                         {
                             // The user won't always be here. If someone immediately joins and says "Hey guys!", they probably won't actually be in here.
                             // Twitch queues all the joins and sends them out every 10 seconds, so my program might not have gotten the memo yet
                             if (!LoggedInUsers.TryGetValue("twitch", out targetTwitchUser))
                             {
-                                targetTwitchUser = new TwitchUser() { UserName = "twitch" };
+                                targetTwitchUser = new User() { UserName = "twitch" };
                                 LoggedInUsers.Add(targetTwitchUser.UserName, targetTwitchUser);
                             }
                         }
@@ -367,11 +361,11 @@ namespace Twitch.TwitchIrc
                         // The first one starts out with a : on their name. The easiest way to get rid of it is to manage it first before any
                         // looping is done
                         if (!LoggedInUsers.ContainsKey(splitText[5].Replace(":", "")))
-                            LoggedInUsers.Add(splitText[5].Replace(":", ""), new TwitchUser() { UserName = splitText[5].Replace(":", "") });
+                            LoggedInUsers.Add(splitText[5].Replace(":", ""), new User() { UserName = splitText[5].Replace(":", "") });
                         for (var i = 6; i < splitText.Count(); i++)
                         {
                             if (!LoggedInUsers.ContainsKey(splitText[i]))
-                                LoggedInUsers.Add(splitText[i], new TwitchUser() { UserName = splitText[i] });
+                                LoggedInUsers.Add(splitText[i], new User() { UserName = splitText[i] });
                         }
                     }
                     break;
@@ -385,7 +379,7 @@ namespace Twitch.TwitchIrc
                         lock (Moderators)
                         {
                             if (!Moderators.ContainsKey(splitText[4]))
-                                Moderators.Add(splitText[4], new TwitchUser() { UserName = splitText[4] });
+                                Moderators.Add(splitText[4], new User() { UserName = splitText[4] });
                         }
                     }
                     break;
@@ -402,7 +396,7 @@ namespace Twitch.TwitchIrc
                         {
                             // And make sure the list doesn't already have them, or the program will crash on a duplicate insert attempt
                             if (!LoggedInUsers.ContainsKey(joiningUser))
-                                LoggedInUsers.Add(joiningUser, new TwitchUser() { UserName = joiningUser });
+                                LoggedInUsers.Add(joiningUser, new User() { UserName = joiningUser });
                         }
                     }
                     break;
@@ -436,7 +430,7 @@ namespace Twitch.TwitchIrc
                         // A new or repeat subscriber, sweet
                         if (buffer.Contains("subscribed"))
                         {
-                            TwitchUser newSubscriber;
+                            User newSubscriber;
                             var subscriberUserName = message.Split(' ')[0];
                             int monthsSubscribed = 1;
 
@@ -449,7 +443,7 @@ namespace Twitch.TwitchIrc
                                 // It can be either a new subscription or a repeat one. If it's a repeat, we'll just change the month count
                                 if (!Subscribers.ContainsKey(subscriberUserName))
                                 {
-                                    newSubscriber = new TwitchUser()
+                                    newSubscriber = new User()
                                     {
                                         UserName = subscriberUserName,
                                         SubscribeDateTime = DateTime.Now,
@@ -475,14 +469,14 @@ namespace Twitch.TwitchIrc
                     // If there's someone to send it to, pretty it up and send it out
                     if (ChatMessageReceived != null)
                     {
-                        TwitchUser targetTwitchUser;
+                        User targetTwitchUser;
                         // The user won't always be here. If someone immediately joins and says "Hey guys!", they probably won't actually be in here.
                         // Twitch queues all the joins and sends them out every 10 seconds, so my program might not have gotten the memo yet
                         lock (LoggedInUsers)
                         {
                             if (!LoggedInUsers.TryGetValue(userName, out targetTwitchUser))
                             {
-                                targetTwitchUser = new TwitchUser() { UserName = userName };
+                                targetTwitchUser = new User() { UserName = userName };
                                 LoggedInUsers.Add(targetTwitchUser.UserName, targetTwitchUser);
                             }
                         }
@@ -538,9 +532,9 @@ namespace Twitch.TwitchIrc
 
     public class NewSubscriberEventArgs : EventArgs
     {
-        public TwitchUser User { get; private set; }
+        public User User { get; private set; }
 
-        public NewSubscriberEventArgs(TwitchUser user)
+        public NewSubscriberEventArgs(User user)
         {
             User = user;
         }

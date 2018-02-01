@@ -38,42 +38,48 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Assembly-CSharp">
-      <HintPath>..\..\..\..\..\Installed\Games\Steam\SteamApps\common\Cities_Skylines\Cities_Data\Managed\Assembly-CSharp.dll</HintPath>
+      <HintPath>Z:\Installed\Games\Steam\steamapps\common\Cities_Skylines\Cities_Data\Managed\Assembly-CSharp.dll</HintPath>
     </Reference>
     <Reference Include="ColossalManaged">
-      <HintPath>..\..\..\..\..\Installed\Games\Steam\SteamApps\common\Cities_Skylines\Cities_Data\Managed\ColossalManaged.dll</HintPath>
+      <HintPath>Z:\Installed\Games\Steam\steamapps\common\Cities_Skylines\Cities_Data\Managed\ColossalManaged.dll</HintPath>
     </Reference>
     <Reference Include="ICities">
-      <HintPath>..\..\..\..\..\Installed\Games\Steam\SteamApps\common\Cities_Skylines\Cities_Data\Managed\ICities.dll</HintPath>
+      <HintPath>Z:\Installed\Games\Steam\steamapps\common\Cities_Skylines\Cities_Data\Managed\ICities.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Net" />
     <Reference Include="System.XML" />
     <Reference Include="UnityEngine">
-      <HintPath>..\..\..\..\..\Installed\Games\Steam\SteamApps\common\Cities_Skylines\Cities_Data\Managed\UnityEngine.dll</HintPath>
+      <HintPath>Z:\Installed\Games\Steam\steamapps\common\Cities_Skylines\Cities_Data\Managed\UnityEngine.dll</HintPath>
     </Reference>
     <Reference Include="UnityEngine.UI">
-      <HintPath>..\..\..\..\..\Installed\Games\Steam\SteamApps\common\Cities_Skylines\Cities_Data\Managed\UnityEngine.UI.dll</HintPath>
+      <HintPath>Z:\Installed\Games\Steam\steamapps\common\Cities_Skylines\Cities_Data\Managed\UnityEngine.UI.dll</HintPath>
     </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="ChirperExtension.cs" />
-    <Compile Include="ChirperMessage.cs" />
+    <Compile Include="Chirper\ChirperMessage.cs" />
+    <Compile Include="Chirper\ChirperManager.cs" />
+    <Compile Include="Chirper\IChirperManager.cs" />
     <Compile Include="Configuration.cs" />
     <Compile Include="ConfigurationFile.cs" />
+    <Compile Include="CustomCitizen.cs" />
     <Compile Include="ModInfo.cs" />
+    <Compile Include="Twitch\IIrcClient.cs" />
     <Compile Include="Twitch\ILog.cs" />
+    <Compile Include="Twitch\Helpers\ReflectionHelper.cs" />
+    <Compile Include="Twitch\IApiManager.cs" />
     <Compile Include="UI\TwitchChirpPanel.cs" />
     <Compile Include="UI\UIThreadManager.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="QueuedChirperMessage.cs" />
+    <Compile Include="Chirper\QueuedChirperMessage.cs" />
     <Compile Include="Twitch\SimpleJSON.cs" />
     <Compile Include="UI\UIManager.cs" />
-    <Compile Include="Twitch\TwitchApi\TwitchApiManager.cs" />
-    <Compile Include="Twitch\TwitchIrc\ConnectionFailedException.cs" />
+    <Compile Include="Twitch\ApiManager.cs" />
+    <Compile Include="Twitch\ConnectionFailedException.cs" />
     <Compile Include="Log.cs" />
-    <Compile Include="Twitch\TwitchIrc\IrcMessage.cs" />
-    <Compile Include="Twitch\TwitchIrc\TwitchIrcClient.cs" />
+    <Compile Include="Twitch\IrcMessage.cs" />
+    <Compile Include="Twitch\IrcClient.cs" />
     <Compile Include="Twitch\TwitchUser.cs" />
     <Compile Include="UI\ConfigurationPanel.cs" />
   </ItemGroup>
@@ -83,8 +89,8 @@
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>del "X:\Installed\Games\Steam\SteamApps\workshop\content\255710\414730498\$(ProjectName).dll"
-copy /y "$(TargetPath)" "X:\Installed\Games\Steam\SteamApps\workshop\content\255710\414730498\$(ProjectName).dll"</PostBuildEvent>
+    <PostBuildEvent>del "Z:\Installed\Games\Steam\SteamApps\workshop\content\255710\414730498\$(ProjectName).dll"
+copy /y "$(TargetPath)" "Z:\Installed\Games\Steam\SteamApps\workshop\content\255710\414730498\$(ProjectName).dll"</PostBuildEvent>
   </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
